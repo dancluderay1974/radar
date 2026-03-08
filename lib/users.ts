@@ -9,8 +9,8 @@ export interface User {
   createdAt: Date
 }
 
-// Pre-hashed password for "dan" (generated with bcrypt.hashSync("dan", 10))
-const DAN_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+// Pre-hashed password for "dan" (bcrypt hash of password "dan")
+const DAN_PASSWORD_HASH = "$2b$10$hPcWWm/6CIZ4R0/vH/SJfO3YIXyVHYh.WV5Yqo7JVB3gqJBCfYODm"
 
 // In-memory user store (replace with database in production)
 const users: User[] = [
