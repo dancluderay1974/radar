@@ -1,11 +1,11 @@
-import type { NextAuthOptions } from "next-auth"
-import GitHubProvider from "next-auth/providers/github"
+import NextAuth from "next-auth"
+import GitHub from "next-auth/providers/github"
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
+    GitHub({
+      clientId: process.env.GITHUB_ID,
+      clientSecret: process.env.GITHUB_SECRET,
       authorization: {
         params: {
           scope: "read:user user:email repo",
@@ -55,6 +55,5 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
   trustHost: true,
-}
+})
