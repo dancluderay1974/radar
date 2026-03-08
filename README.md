@@ -2,9 +2,10 @@
 
 A documented prototype of the platform you described: v0/Figma Make-style AI builder with:
 - left chat workspace,
-- live preview,
+- live preview (starts empty until a repository pull succeeds),
 - click-to-focus element targeting,
 - git repo pull simulation,
+- GitHub account connection flow before repository pulls,
 - account signup,
 - quick login,
 - MCP integration management (Supabase/Cloudflare/GitHub),
