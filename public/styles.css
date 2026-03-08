@@ -1,0 +1,150 @@
+/*
+  Stage 1: Global layout and theming.
+  Why this exists: keeps the product dashboard readable and familiar to users of
+  modern AI builder apps with chat-first UX.
+*/
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #f8fafc;
+}
+
+body {
+  margin: 0;
+  color: #0f172a;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  min-height: 100vh;
+}
+
+.panel {
+  padding: 1rem;
+}
+
+.panel-chat {
+  border-right: 1px solid #dbe4ff;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.panel-preview {
+  background: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panel-header h1 {
+  margin-bottom: 0.2rem;
+}
+
+.group {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.8rem;
+  margin-bottom: 0.9rem;
+  background: #fbfdff;
+}
+
+.group h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+label {
+  display: block;
+  margin-top: 0.55rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
+}
+
+input,
+textarea,
+select,
+button {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  border-radius: 10px;
+}
+
+input,
+textarea,
+select {
+  border: 1px solid #cbd5e1;
+  padding: 0.55rem;
+}
+
+button {
+  margin-top: 0.6rem;
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.status[data-tone="error"] {
+  color: #b91c1c;
+}
+
+.status[data-tone="success"] {
+  color: #166534;
+}
+
+.chat-log {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  min-height: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: #eff6ff;
+}
+
+.chat-bubble {
+  border-radius: 8px;
+  padding: 0.55rem;
+  margin-bottom: 0.45rem;
+  white-space: pre-wrap;
+}
+
+.chat-bubble.user {
+  background: #dbeafe;
+}
+
+.chat-bubble.assistant {
+  background: #e2e8f0;
+}
+
+.preview-header {
+  background: white;
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+#previewFrame {
+  width: 100%;
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: white;
+}
+
+.billing-output {
+  background: #020617;
+  color: #bfdbfe;
+  padding: 0.5rem;
+  border-radius: 10px;
+  min-height: 80px;
+  overflow-x: auto;
+}

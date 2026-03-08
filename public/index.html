@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>e-yar.com | AI Repo Builder</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!--
+      Stage 1: Root shell markup.
+      Why this exists: defines the high-level layout for workspace (chat + preview)
+      plus account and billing forms that mirror production SaaS concerns.
+    -->
+    <div class="app-shell">
+      <aside class="panel panel-chat">
+        <header class="panel-header">
+          <h1>e-yar.com</h1>
+          <p>Codex-powered UI engineering workspace</p>
+        </header>
+
+        <section class="group" aria-labelledby="repo-title">
+          <h2 id="repo-title">Repository Sync</h2>
+          <label for="repoUrl">Git URL</label>
+          <input id="repoUrl" type="url" placeholder="https://github.com/org/repo" />
+          <label for="repoBranch">Branch</label>
+          <input id="repoBranch" type="text" placeholder="main" />
+          <button id="syncRepoButton">Pull Repository</button>
+          <p id="repoStatus" class="status"></p>
+        </section>
+
+        <section class="group" aria-labelledby="account-title">
+          <h2 id="account-title">Account Signup</h2>
+          <label for="signupEmail">Email</label>
+          <input id="signupEmail" type="email" placeholder="founder@e-yar.com" />
+          <label for="signupPassword">Password</label>
+          <input id="signupPassword" type="password" placeholder="••••••••" />
+          <label for="signupPlan">Plan</label>
+          <select id="signupPlan">
+            <option value="starter">Starter (200 credits)</option>
+            <option value="pro">Pro (1000 credits)</option>
+          </select>
+          <button id="signupButton">Create Account</button>
+          <p id="signupStatus" class="status"></p>
+        </section>
+
+        <section class="group" aria-labelledby="chat-title">
+          <h2 id="chat-title">Builder Chat</h2>
+          <p class="status">Selected element: <span id="selectedNode">none</span></p>
+          <div id="chatLog" class="chat-log"></div>
+          <textarea id="chatInput" placeholder="Ask Codex to edit the repo..." rows="4"></textarea>
+          <button id="sendChatButton">Send Prompt</button>
+          <p id="chatStatus" class="status"></p>
+        </section>
+
+        <section class="group" aria-labelledby="billing-title">
+          <h2 id="billing-title">Credit Billing</h2>
+          <label for="billingEmail">Lookup email</label>
+          <input id="billingEmail" type="email" placeholder="founder@e-yar.com" />
+          <button id="billingButton">Refresh Billing</button>
+          <pre id="billingOutput" class="billing-output"></pre>
+        </section>
+      </aside>
+
+      <main class="panel panel-preview">
+        <header class="preview-header">
+          <h2>Live Preview</h2>
+          <p>Click any element in the preview to focus changes before prompting Codex.</p>
+        </header>
+        <iframe id="previewFrame" src="/preview.html" title="Live project preview"></iframe>
+      </main>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
