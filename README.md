@@ -11,6 +11,7 @@ A documented prototype of the platform you described: v0/Figma Make-style AI bui
 - MCP integration management (Supabase/Cloudflare/GitHub),
 - credit-based billing visibility,
 - Codex orchestration simulation.
+- React-based frontend shell mounted in `#root` (loaded via CDN + Babel for zero-build prototype mode),
 
 ## Run
 ```bash
