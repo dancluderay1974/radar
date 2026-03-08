@@ -1,21 +1,185 @@
+"use client"
+
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Code2, GitBranch, Sparkles, Zap } from "lucide-react"
 
+type LandingCopy = {
+  badge: string
+  heroTitle: string
+  heroSubtitle: string
+  heroDescription: string
+  primaryCta: string
+  featureTitle: string
+  featureDescription: string
+  features: Array<{ title: string; description: string }>
+  howItWorksDescription: string
+  steps: Array<{ title: string; description: string }>
+  ctaTitle: string
+  ctaDescription: string
+  footerTagline: string
+}
+
+/**
+ * TranslationSwitchProps describes the reusable switch interface.
+ * Step 1: Keep the control API explicit so desktop/mobile wrappers stay simple and consistent.
+ */
+type TranslationSwitchProps = {
+  id: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  compact?: boolean
+}
+
+/**
+ * Step 2: Define both copy variants in one map so every section toggles consistently.
+ * Why: keeping translations side-by-side makes this feature easy to update and review.
+ */
+const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
+  yorkshire: {
+    badge: "AI Web Development, Yorkshire Style",
+    heroTitle: "Reet Proper AI",
+    heroSubtitle: "for building websites.",
+    heroDescription:
+      "When t'server's sulking and there's trouble at mill, e-yar helps you build, fix, and ship websites without all t'faff. Tell it what you want in plain English, and it gets cracking.",
+    primaryCta: "Get It Sorted",
+    featureTitle: "Everything You Need, Nowt You Don't",
+    featureDescription:
+      "A reet practical AI toolkit for building websites quickly, cleanly, and without endless config nonsense.",
+    features: [
+      {
+        title: "GitHub, Properly Connected",
+        description:
+          "Link your repos, pull code, and push changes straight from t'platform. No messing about.",
+      },
+      {
+        title: "AI That Writes The Boring Bits",
+        description:
+          "Tell it what you need. It writes tidy code. You review it, tweak it, and crack on.",
+      },
+      {
+        title: "Live Preview",
+        description:
+          "See changes straight away. If summat's off, you'll spot it before it causes trouble at mill.",
+      },
+    ],
+    howItWorksDescription:
+      "Three simple steps and you're building websites faster than a brew goes cold.",
+    steps: [
+      {
+        title: "Connect t' GitHub",
+        description: "Connect t' GitHub, pick your repo, and get cracking.",
+      },
+      {
+        title: "Tell It What You Need",
+        description: "Describe your page or feature in plain English.",
+      },
+      {
+        title: "Review and Ship",
+        description: "Check the output, make tweaks, and deploy when it's reet proper job.",
+      },
+    ],
+    ctaTitle: "Right Then, Let's Build Summat",
+    ctaDescription:
+      "Stop fighting broken builds and tut development server. Let AI handle the faff so you can get back to proper dev work.",
+    footerTagline:
+      "Built with Yorkshire stubbornness. Less nonsense. More working software.",
+  },
+  english: {
+    badge: "AI Web Development, Silicon Valley Style",
+    heroTitle: "High-Performance AI",
+    heroSubtitle: "for building websites.",
+    heroDescription:
+      "When your server is under pressure and delivery timelines are tight, e-yar helps you build, fix, and ship websites without unnecessary overhead. Share your goals clearly, and it executes fast.",
+    primaryCta: "Launch Now",
+    featureTitle: "Everything You Need, Nothing You Don't",
+    featureDescription:
+      "A practical AI toolkit for shipping websites quickly, cleanly, and without configuration drag.",
+    features: [
+      {
+        title: "GitHub, Fully Integrated",
+        description:
+          "Connect repositories, pull code, and ship updates directly from the platform with a streamlined workflow.",
+      },
+      {
+        title: "AI That Handles Boilerplate",
+        description:
+          "Describe the outcome. The AI generates clean implementation details so your team can focus on product decisions.",
+      },
+      {
+        title: "Live Preview",
+        description:
+          "Review changes instantly, validate UX quickly, and catch issues before they impact release velocity.",
+      },
+    ],
+    howItWorksDescription:
+      "Three simple steps and your team is shipping websites faster with confidence.",
+    steps: [
+      {
+        title: "Connect Your GitHub",
+        description:
+          "Connect GitHub, select your repository, and initialize your workflow in minutes.",
+      },
+      {
+        title: "Define the Outcome",
+        description: "Describe the page or feature in clear business language.",
+      },
+      {
+        title: "Review and Deploy",
+        description:
+          "Validate the generated output, apply final refinements, and deploy when it's production-ready.",
+      },
+    ],
+    ctaTitle: "Let's Build Something Great",
+    ctaDescription:
+      "Stop losing time to flaky builds and local environment friction. Let AI absorb the repetitive work so your team can stay focused on outcomes.",
+    footerTagline:
+      "Built with practical engineering discipline. Less noise. More production-ready software.",
+  },
+}
+
+/**
+ * LandingPage renders the marketing website and includes a top-level language-mode switch.
+ * Step 3: Keep Yorkshire slang enabled by default and let users opt into English translation.
+ */
 export default function LandingPage() {
+  const [isEnglishModeEnabled, setIsEnglishModeEnabled] = useState(false)
+
+  /**
+   * Step 4: Resolve active copy from toggle state using useMemo for clear intent.
+   * Why: this keeps the render section clean and centralizes mode logic in one place.
+   */
+  const activeCopy = useMemo(
+    () => LANDING_COPY[isEnglishModeEnabled ? "english" : "yorkshire"],
+    [isEnglishModeEnabled],
+  )
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
               <Code2 className="h-5 w-5 text-background" />
             </div>
             <span className="text-xl font-semibold tracking-tight">e-yar</span>
           </Link>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-3">
+            {/*
+              Step 5: Render an Apple-inspired pill switch in the header.
+              Why: this creates a more polished, familiar toggle interaction than a plain checkbox.
+            */}
+            <div className="hidden md:block">
+              <TranslationSwitch
+                id="translate-to-english"
+                checked={isEnglishModeEnabled}
+                onCheckedChange={setIsEnglishModeEnabled}
+              />
+            </div>
+
             <Link href="/login">
               <Button variant="ghost" size="sm">
                 Log in
@@ -31,31 +195,42 @@ export default function LandingPage() {
         </nav>
       </header>
 
+      {/*
+        Step 6: Preserve mobile access to the translation control.
+        Why: users on small screens should be able to toggle language without horizontal crowding.
+      */}
+      <div className="border-b bg-background px-4 py-3 md:hidden">
+        <TranslationSwitch
+          id="translate-to-english-mobile"
+          checked={isEnglishModeEnabled}
+          onCheckedChange={setIsEnglishModeEnabled}
+          compact
+        />
+      </div>
+
       {/* Hero Section */}
       <main>
         <section className="mx-auto max-w-6xl px-4 py-24 text-center">
           <div className="mx-auto max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4" />
-              AI Web Development, Yorkshire Style
+              {activeCopy.badge}
             </div>
-            
+
             <h1 className="mb-6 text-balance text-5xl font-bold tracking-tight sm:text-6xl">
-              Reet Proper AI
+              {activeCopy.heroTitle}
               <br />
-              <span className="text-muted-foreground">for building websites.</span>
+              <span className="text-muted-foreground">{activeCopy.heroSubtitle}</span>
             </h1>
-            
+
             <p className="mx-auto mb-10 max-w-2xl text-pretty text-lg text-muted-foreground">
-              When t&apos;server&apos;s sulking and there&apos;s trouble at mill, e-yar helps you build,
-              fix, and ship websites without all t&apos;faff. Tell it what you want in plain English,
-              and it gets cracking.
+              {activeCopy.heroDescription}
             </p>
-            
+
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/login">
                 <Button size="lg" className="min-w-[200px]">
-                  Get It Sorted
+                  {activeCopy.primaryCta}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -70,30 +245,25 @@ export default function LandingPage() {
         <section className="border-t bg-muted/30 py-24">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold tracking-tight">
-                Everything You Need, Nowt You Don&apos;t
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                A reet practical AI toolkit for building websites quickly, cleanly, and without
-                endless config nonsense.
-              </p>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight">{activeCopy.featureTitle}</h2>
+              <p className="mx-auto max-w-2xl text-muted-foreground">{activeCopy.featureDescription}</p>
             </div>
-            
+
             <div className="grid gap-8 md:grid-cols-3">
               <FeatureCard
                 icon={<GitBranch className="h-6 w-6" />}
-                title="GitHub, Properly Connected"
-                description="Link your repos, pull code, and push changes straight from t&apos;platform. No messing about."
+                title={activeCopy.features[0].title}
+                description={activeCopy.features[0].description}
               />
               <FeatureCard
                 icon={<Sparkles className="h-6 w-6" />}
-                title="AI That Writes The Boring Bits"
-                description="Tell it what you need. It writes tidy code. You review it, tweak it, and crack on."
+                title={activeCopy.features[1].title}
+                description={activeCopy.features[1].description}
               />
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
-                title="Live Preview"
-                description="See changes straight away. If summat&apos;s off, you&apos;ll spot it before it causes trouble at mill."
+                title={activeCopy.features[2].title}
+                description={activeCopy.features[2].description}
               />
             </div>
           </div>
@@ -103,29 +273,25 @@ export default function LandingPage() {
         <section className="py-24">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold tracking-tight">
-                How It Works
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                Three simple steps and you&apos;re building websites faster than a brew goes cold.
-              </p>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight">How It Works</h2>
+              <p className="mx-auto max-w-2xl text-muted-foreground">{activeCopy.howItWorksDescription}</p>
             </div>
-            
+
             <div className="grid gap-12 md:grid-cols-3">
               <StepCard
                 number="01"
-                title="Connect t' GitHub"
-                description="Connect t' GitHub, pick your repo, and get cracking."
+                title={activeCopy.steps[0].title}
+                description={activeCopy.steps[0].description}
               />
               <StepCard
                 number="02"
-                title="Tell It What You Need"
-                description="Describe your page or feature in plain English."
+                title={activeCopy.steps[1].title}
+                description={activeCopy.steps[1].description}
               />
               <StepCard
                 number="03"
-                title="Review and Ship"
-                description="Check the output, make tweaks, and deploy when it&apos;s reet proper job."
+                title={activeCopy.steps[2].title}
+                description={activeCopy.steps[2].description}
               />
             </div>
           </div>
@@ -134,13 +300,8 @@ export default function LandingPage() {
         {/* CTA Section */}
         <section className="border-t bg-foreground py-24 text-background">
           <div className="mx-auto max-w-6xl px-4 text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight">
-              Right Then, Let&apos;s Build Summat
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-background/70">
-              Stop fighting broken builds and tut development server. Let AI handle the faff so
-              you can get back to proper dev work.
-            </p>
+            <h2 className="mb-4 text-3xl font-bold tracking-tight">{activeCopy.ctaTitle}</h2>
+            <p className="mx-auto mb-8 max-w-2xl text-background/70">{activeCopy.ctaDescription}</p>
             <Link href="/login">
               <Button size="lg" variant="secondary" className="min-w-[200px]">
                 Start Building
@@ -161,9 +322,7 @@ export default function LandingPage() {
               </div>
               <span className="font-semibold">e-yar</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Built with Yorkshire stubbornness. Less nonsense. More working software.
-            </p>
+            <p className="text-sm text-muted-foreground">{activeCopy.footerTagline}</p>
           </div>
         </div>
       </footer>
@@ -171,6 +330,51 @@ export default function LandingPage() {
   )
 }
 
+/**
+ * TranslationSwitch renders an Apple-inspired toggle control with an animated thumb.
+ * Step 7: Use a button-based switch for better styling control while keeping screen-reader semantics.
+ */
+function TranslationSwitch({
+  id,
+  checked,
+  onCheckedChange,
+  compact = false,
+}: TranslationSwitchProps) {
+  const wrapperClassName = compact
+    ? "flex items-center justify-between text-sm text-muted-foreground"
+    : "flex items-center gap-3 text-sm text-muted-foreground"
+
+  return (
+    <div className={wrapperClassName}>
+      <span id={`${id}-label`} className="select-none">
+        Translate to English
+      </span>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={`${id}-label`}
+        onClick={() => onCheckedChange(!checked)}
+        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-transparent p-0.5 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+          checked ? "bg-blue-500" : "bg-zinc-300 dark:bg-zinc-700"
+        }`}
+      >
+        <span
+          className={`h-6 w-6 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.2)] transition-transform duration-300 ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+        <span className="sr-only">Translate to English</span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * FeatureCard displays one product capability with icon + copy.
+ * Why: this keeps the features grid readable while allowing dynamic translated text.
+ */
 function FeatureCard({
   icon,
   title,
@@ -191,6 +395,10 @@ function FeatureCard({
   )
 }
 
+/**
+ * StepCard displays a numbered onboarding step.
+ * Why: preserving this component avoids duplicated markup in both language modes.
+ */
 function StepCard({
   number,
   title,
