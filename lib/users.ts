@@ -9,13 +9,16 @@ export interface User {
   createdAt: Date
 }
 
+// Pre-hashed password for "dan" (generated with bcrypt.hashSync("dan", 10))
+const DAN_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+
 // In-memory user store (replace with database in production)
 const users: User[] = [
   {
     id: "1",
     username: "dan",
     email: "dan@e-yar.com",
-    passwordHash: bcrypt.hashSync("dan", 10),
+    passwordHash: DAN_PASSWORD_HASH,
     role: "admin",
     createdAt: new Date("2024-01-01"),
   },
