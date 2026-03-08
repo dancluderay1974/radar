@@ -1,3 +1,5 @@
+export const runtime = "edge"
+
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -19,8 +21,7 @@ export async function GET(
     return NextResponse.json({ error: "User not found" }, { status: 404 })
   }
 
-  const { passwordHash, ...safeUser } = user
-  return NextResponse.json(safeUser)
+  return NextResponse.json(user)
 }
 
 export async function PATCH(
@@ -43,8 +44,7 @@ export async function PATCH(
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const { passwordHash, ...safeUser } = user
-    return NextResponse.json(safeUser)
+    return NextResponse.json(user)
   } catch {
     return NextResponse.json(
       { error: "Failed to update user" },

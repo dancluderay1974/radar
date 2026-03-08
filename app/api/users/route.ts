@@ -1,3 +1,5 @@
+export const runtime = "edge"
+
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -23,27 +25,17 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { username, email, password, role } = body
+    const { username, email, role } = body
 
-    if (!username || !email || !password) {
+    if (!username || !email) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       )
     }
 
-    const user = addUser(username, email, password, role || "user")
-    const { ...userWithoutPassword } = user
-    // Remove passwordHash from response
-    const safeUser = {
-      id: userWithoutPassword.id,
-      username: userWithoutPassword.username,
-      email: userWithoutPassword.email,
-      role: userWithoutPassword.role,
-      createdAt: userWithoutPassword.createdAt,
-    }
-
-    return NextResponse.json(safeUser, { status: 201 })
+    const user = addUser(username, email, role || "user")
+    return NextResponse.json(user, { status: 201 })
   } catch {
     return NextResponse.json(
       { error: "Failed to create user" },
