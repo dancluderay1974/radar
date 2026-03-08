@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { gsap } from "gsap"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Code2, GitBranch, Sparkles, Zap } from "lucide-react"
@@ -36,6 +37,13 @@ type TranslationSwitchProps = {
  * Step 2: Define both copy variants in one map so every section toggles consistently.
  * Why: keeping translations side-by-side makes this feature easy to update and review.
  */
+
+/**
+ * Step 2.1: Define the rotating brand sequence for the header logo text.
+ * Why: product wants a continuous GSAP-driven text loop every 3 seconds in one place.
+ */
+const ROTATING_BRAND_WORDS = ["e-yar", "found-it", "here it is", "it's here"] as const
+
 const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
   yorkshire: {
     badge: "AI Web Development, Yorkshire Style",
@@ -155,6 +163,66 @@ export default function LandingPage() {
     [isEnglishModeEnabled],
   )
 
+  /**
+   * Step 4.1: Track the active index for the rotating brand words.
+   * Why: this state lets React render the current word while GSAP handles transitions.
+   */
+  const [activeBrandIndex, setActiveBrandIndex] = useState(0)
+
+  /**
+   * Step 4.2: Keep a ref to the header brand element that GSAP animates.
+   * Why: GSAP animates DOM nodes directly, so we provide a stable element reference.
+   */
+  const headerBrandRef = useRef<HTMLSpanElement | null>(null)
+
+  /**
+   * Step 4.3: Derive the currently displayed brand label from the active index.
+   * Why: this keeps rendering logic declarative while the timeline changes the index.
+   */
+  const headerBrandName = ROTATING_BRAND_WORDS[activeBrandIndex]
+
+  /**
+   * Step 4.4: Build a GSAP timeline that rotates brand words every 3 seconds.
+   * Why: each cycle fades/slides text out, swaps to the next word, and animates back in.
+   */
+  useEffect(() => {
+    if (!headerBrandRef.current) {
+      return
+    }
+
+    const context = gsap.context(() => {
+      const timeline = gsap.timeline({ repeat: -1 })
+
+      for (let step = 1; step <= ROTATING_BRAND_WORDS.length; step += 1) {
+        const nextIndex = step % ROTATING_BRAND_WORDS.length
+
+        timeline
+          .to(headerBrandRef.current, {
+            opacity: 0,
+            y: -6,
+            duration: 0.35,
+            delay: 2.3,
+            ease: "power2.in",
+          })
+          .add(() => setActiveBrandIndex(nextIndex))
+          .fromTo(
+            headerBrandRef.current,
+            { opacity: 0, y: 6 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.35,
+              ease: "power2.out",
+            },
+          )
+      }
+    }, headerBrandRef)
+
+    return () => {
+      context.revert()
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -164,7 +232,9 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
               <Code2 className="h-5 w-5 text-background" />
             </div>
-            <span className="text-xl font-semibold tracking-tight">e-yar</span>
+            <span ref={headerBrandRef} className="text-xl font-semibold tracking-tight">
+              {headerBrandName}
+            </span>
           </Link>
 
           <div className="flex items-center gap-3">
