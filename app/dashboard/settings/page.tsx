@@ -45,11 +45,10 @@ export default async function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>Account Type</Label>
               <Input
-                defaultValue={session?.user?.role || "user"}
+                defaultValue="GitHub User"
                 disabled
-                className="capitalize"
               />
             </div>
           </CardContent>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { Code2, LayoutDashboard, Settings, Users, LogOut, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,23 +20,20 @@ interface DashboardNavProps {
   user: {
     name?: string | null
     email?: string | null
-    role?: string
+    image?: string | null
   }
 }
 
 const navItems = [
   { href: "/dashboard", label: "Workspace", icon: LayoutDashboard },
-  { href: "/dashboard/admin", label: "Admin", icon: Users, adminOnly: true },
+  { href: "/dashboard/admin", label: "Admin", icon: Users },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
 export function DashboardNav({ user }: DashboardNavProps) {
   const pathname = usePathname()
-  const isAdmin = user.role === "admin"
 
-  const visibleNavItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin
-  )
+  const visibleNavItems = navItems
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
@@ -75,6 +72,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-7 w-7">
+                  {user.image && <AvatarImage src={user.image} alt={user.name || "User"} />}
                   <AvatarFallback className="text-xs">
                     {user.name?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>

@@ -10,7 +10,7 @@ export async function GET(
   const session = await getServerSession(authOptions)
   const { id } = await params
 
-  if (!session || session.user.role !== "admin") {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -30,7 +30,7 @@ export async function PATCH(
   const session = await getServerSession(authOptions)
   const { id } = await params
 
-  if (!session || session.user.role !== "admin") {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -60,7 +60,7 @@ export async function DELETE(
   const session = await getServerSession(authOptions)
   const { id } = await params
 
-  if (!session || session.user.role !== "admin") {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
