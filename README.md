@@ -1,38 +1,73 @@
-# e-yar.com Prototype
+# e-yar - AI App Builder
 
-A documented prototype of the platform you described: v0/Figma Make-style AI builder with:
-- left chat workspace,
-- live preview (starts empty until a repository pull succeeds),
-- click-to-focus element targeting,
-- git repo pull simulation,
-- GitHub account connection flow before repository pulls,
-- account signup,
-- quick login,
-- MCP integration management (Supabase/Cloudflare/GitHub),
-- credit-based billing visibility,
-- Codex orchestration simulation.
-- React-based frontend shell mounted in `#root` (loaded via CDN + Babel for zero-build prototype mode),
+A professional AI-powered application builder for warehouse management systems. Built with Next.js, NextAuth.js, and Tailwind CSS.
 
-## Run
+## Features
+
+- Professional landing page with login
+- NextAuth.js authentication (demo: dan/dan)
+- Protected dashboard workspace
+- Admin panel for user management
+- GitHub integration (coming soon)
+- AI code generation (coming soon)
+
+## Getting Started
+
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
-Open `http://localhost:3000`.
 
-## Cloudflare path
-This project is already compatible with a Cloudflare-first deployment strategy:
-- **Cloudflare Pages** can host the `public/` experience.
-- **Cloudflare Workers** can replace the Node HTTP server routes under `/api/*`.
-- **Cloudflare D1 / KV / R2** can back session, account, and preview metadata.
+Open `http://localhost:3000` in your browser.
 
-## MCP integration prototype
-- Use the **MCP Integrations** panel in the left rail to connect service endpoints.
-- The backend now exposes:
-  - `GET /api/mcp/servers`
-  - `POST /api/mcp/servers/connect`
-  - `POST /api/mcp/servers/:serverId/invoke`
-- Supabase is included as a first-class preset to support development workflows.
+### Login Credentials
 
-## Notes
-This is a foundation architecture and workflow prototype. It demonstrates the core interaction model and product framing so the next step can integrate real Codex APIs, git workers, and persistent billing/auth infrastructure.
+- Username: `dan`
+- Password: `dan`
+- Role: admin
+
+## Project Structure
+
+```
+/app              - Next.js App Router pages and routes
+/components       - React components (UI, admin, dashboard, etc.)
+/lib              - Utility functions and configuration (auth, users)
+/types            - TypeScript type definitions
+/public           - Static assets
+```
+
+## Tech Stack
+
+- **Framework**: Next.js 15
+- **Auth**: NextAuth.js v4
+- **Database**: In-memory (replace with real DB)
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Language**: TypeScript
+
+## Development
+
+### Environment Variables
+
+The following env vars are configured in `.env.local`:
+
+```
+NEXTAUTH_SECRET=dev-secret-key-change-in-production
+NEXTAUTH_URL=http://localhost:3000
+```
+
+### Authentication Flow
+
+1. User visits landing page or clicks login
+2. Enters credentials (dan/dan for demo)
+3. NextAuth validates against in-memory user store
+4. Session created, user redirected to dashboard
+5. Admin users can access `/dashboard/admin` for user management
+
+## Next Steps
+
+1. Connect real GitHub API for repository management
+2. Implement AI code generation with OpenAI/Claude
+3. Add file system integration for pulled repositories
+4. Implement real database persistence
+5. Add warehouse management system-specific features
+
