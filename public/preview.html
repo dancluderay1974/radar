@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview Canvas</title>
+    <style>
+      body { font-family: Inter, Arial, sans-serif; margin: 0; background: #f4f7ff; color: #111827; }
+      .hero { padding: 40px; background: linear-gradient(135deg, #dbeafe, #f5d0fe); }
+      .hero h1 { margin: 0; font-size: 2rem; }
+      .hero p { max-width: 600px; }
+      .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 32px; }
+      .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(15,23,42,0.08); cursor: pointer; }
+      [data-node-id].focused { outline: 3px solid #2563eb; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Stage 1: Sample preview target nodes.
+      Why this exists: each element has data-node-id to simulate mapping design clicks
+      back to code entities, allowing focused prompts.
+    -->
+    <section class="hero" data-node-id="hero.section">
+      <h1 data-node-id="hero.title">Build production UI with AI speed.</h1>
+      <p data-node-id="hero.subtitle">e-yar.com combines repository context, Codex orchestration, and live previews for real software workflows.</p>
+      <button data-node-id="hero.cta">Start generating</button>
+    </section>
+
+    <section class="cards" data-node-id="features.grid">
+      <article class="card" data-node-id="feature.repo-sync">
+        <h2>Repo Sync</h2>
+        <p>Pull git repositories, index source, and keep branches aligned.</p>
+      </article>
+      <article class="card" data-node-id="feature.codex-brain">
+        <h2>Codex Brain</h2>
+        <p>Execute diffs with model-driven planning and credit metering.</p>
+      </article>
+      <article class="card" data-node-id="feature.live-preview">
+        <h2>Live Preview</h2>
+        <p>Click UI targets and issue scoped change requests in chat.</p>
+      </article>
+    </section>
+
+    <script>
+      /**
+       * Stage 2: Click-to-focus message bridge.
+       * Why this exists: parent app needs selected node context for prompt grounding.
+       */
+      const selectableNodes = Array.from(document.querySelectorAll("[data-node-id]"));
+
+      function clearFocus() {
+        selectableNodes.forEach((node) => node.classList.remove("focused"));
+      }
+
+      selectableNodes.forEach((node) => {
+        node.addEventListener("click", (event) => {
+          event.stopPropagation();
+          clearFocus();
+          node.classList.add("focused");
+          window.parent.postMessage(
+            {
+              type: "preview-node-selected",
+              nodeId: node.getAttribute("data-node-id")
+            },
+            "*"
+          );
+        });
+      });
+    </script>
+  </body>
+</html>

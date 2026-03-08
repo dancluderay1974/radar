@@ -1,0 +1,12 @@
+{
+  "name": "e-yar",
+  "version": "0.1.0",
+  "description": "e-yar.com collaborative AI website builder prototype",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check server.js"
+  }
+}
