@@ -8,7 +8,9 @@ const state = {
   selectedNodeId: null,
   activeUserEmail: "",
   chat: [],
-  mcpServers: []
+  mcpServers: [],
+  githubConnection: null,
+  repoLoaded: false
 };
 
 /**
@@ -21,6 +23,10 @@ const elements = {
   repoBranch: document.getElementById("repoBranch"),
   syncRepoButton: document.getElementById("syncRepoButton"),
   repoStatus: document.getElementById("repoStatus"),
+  githubUsername: document.getElementById("githubUsername"),
+  githubToken: document.getElementById("githubToken"),
+  githubConnectButton: document.getElementById("githubConnectButton"),
+  githubStatus: document.getElementById("githubStatus"),
   mcpService: document.getElementById("mcpService"),
   mcpLabel: document.getElementById("mcpLabel"),
   mcpEndpoint: document.getElementById("mcpEndpoint"),
@@ -43,7 +49,12 @@ const elements = {
   selectedNode: document.getElementById("selectedNode"),
   billingEmail: document.getElementById("billingEmail"),
   billingButton: document.getElementById("billingButton"),
-  billingOutput: document.getElementById("billingOutput")
+  billingOutput: document.getElementById("billingOutput"),
+  previewFrame: document.getElementById("previewFrame"),
+  projectTitle: document.getElementById("projectTitle"),
+  previewUrl: document.getElementById("previewUrl"),
+  configTabs: Array.from(document.querySelectorAll(".config-tab")),
+  configPanels: Array.from(document.querySelectorAll(".config-panel"))
 };
 
 /**
@@ -73,6 +84,61 @@ function renderActiveUser() {
   elements.activeUserBadge.textContent = state.activeUserEmail
     ? `Logged in: ${state.activeUserEmail}`
     : "Not logged in";
+}
+
+/**
+ * Stage 3a: Preview rendering helper.
+ * Why this exists: enforces an empty-by-default preview and only loads the project
+ * canvas after a repository pull succeeds.
+ */
+function renderPreviewState() {
+  if (!state.repoLoaded) {
+    elements.previewFrame.src = "/preview-empty.html";
+    elements.projectTitle.textContent = "No repository loaded";
+    elements.previewUrl.textContent = "No preview loaded";
+    return;
+  }
+
+  elements.previewFrame.src = "/preview.html";
+  elements.projectTitle.textContent = state.sessionName || "Repository preview";
+  elements.previewUrl.textContent = state.repoUrl || "/preview.html";
+}
+
+/**
+ * Stage 3b: Configuration icon-tab controller.
+ * Why this exists: keeps the left rail compact by showing one settings group at a
+ * time while preserving direct access to all configuration workflows.
+ */
+function setupConfigTabs() {
+  const tabs = elements.configTabs || [];
+  const panels = elements.configPanels || [];
+
+  if (!tabs.length || !panels.length) {
+    return;
+  }
+
+  function setActiveConfigTab(tabId) {
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.configTab === tabId;
+      tab.classList.toggle("active", isActive);
+      tab.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    panels.forEach((panel) => {
+      const isActive = panel.dataset.configPanel === tabId;
+      panel.classList.toggle("active", isActive);
+    });
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const tabId = tab.dataset.configTab;
+      setActiveConfigTab(tabId);
+    });
+  });
+
+  const defaultTab = tabs.find((tab) => tab.classList.contains("active"))?.dataset.configTab || tabs[0].dataset.configTab;
+  setActiveConfigTab(defaultTab);
 }
 
 function renderMcpServers() {
@@ -118,11 +184,51 @@ async function loadSession() {
   const session = await response.json();
 
   state.chat = session.chat || [];
+  state.repoUrl = session.repoUrl || "";
+  state.sessionName = session.name || "";
+  state.repoLoaded = Boolean(session.repoLoaded);
+  state.githubConnection = session.githubConnection || null;
+
   elements.repoUrl.value = session.repoUrl || "";
   elements.repoBranch.value = session.branch || "main";
+  if (state.githubConnection?.username) {
+    elements.githubUsername.value = state.githubConnection.username;
+    setStatus(elements.githubStatus, `GitHub connected as ${state.githubConnection.username}.`, "success");
+  }
+
   renderChat();
   renderActiveUser();
+  renderPreviewState();
   await refreshMcpServers();
+}
+
+/**
+ * Stage 4a: GitHub account connectivity flow.
+ * Why this exists: lets users explicitly connect GitHub credentials before attempting
+ * repository pulls that depend on GitHub access.
+ */
+async function connectGithub() {
+  const payload = {
+    sessionId: state.sessionId,
+    username: elements.githubUsername.value.trim(),
+    token: elements.githubToken.value.trim()
+  };
+
+  const response = await fetch("/api/github/connect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    setStatus(elements.githubStatus, data.error || "GitHub connection failed", "error");
+    return;
+  }
+
+  state.githubConnection = data.githubConnection;
+  elements.githubToken.value = "";
+  setStatus(elements.githubStatus, data.message, "success");
 }
 
 async function connectMcpServer() {
@@ -215,7 +321,7 @@ async function quickLogin() {
 
   const data = await response.json();
 
-  // Stage 4a: "already exists" is an acceptable quick-login outcome in this prototype.
+  // Stage 4b: "already exists" is an acceptable quick-login outcome in this prototype.
   if (!response.ok && response.status !== 409) {
     setStatus(elements.quickLoginStatus, data.error || "Quick login failed", "error");
     return;
@@ -246,6 +352,10 @@ async function syncRepository() {
     return;
   }
 
+  state.repoLoaded = true;
+  state.repoUrl = data.session.repoUrl;
+  state.sessionName = data.session.name;
+  renderPreviewState();
   setStatus(elements.repoStatus, `${data.message} (${data.session.branch})`, "success");
 }
 
@@ -318,8 +428,11 @@ window.addEventListener("message", (event) => {
   elements.selectedNode.textContent = state.selectedNodeId;
 });
 
+setupConfigTabs();
+
 elements.quickLoginButton.addEventListener("click", quickLogin);
 elements.signupButton.addEventListener("click", signup);
+elements.githubConnectButton.addEventListener("click", connectGithub);
 elements.syncRepoButton.addEventListener("click", syncRepository);
 elements.mcpConnectButton.addEventListener("click", connectMcpServer);
 elements.mcpRefreshButton.addEventListener("click", refreshMcpServers);

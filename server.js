@@ -34,9 +34,11 @@ const state = {
   sessions: [
     {
       id: "session-demo",
-      name: "Landing page refresh",
-      repoUrl: "https://github.com/example/acme-landing",
+      name: "Repository workspace",
+      repoUrl: "",
       branch: "main",
+      repoLoaded: false,
+      githubConnection: null,
       creditsUsed: 138,
       chat: [
         {
@@ -170,6 +172,35 @@ async function handleApiRoutes(req, res, pathname) {
     });
   }
 
+  /**
+   * Stage 4a: GitHub account connect route.
+   * Why this exists: captures a session-scoped GitHub identity so repo pull can
+   * enforce that GitHub repositories are only pulled after a successful connect.
+   */
+  if (req.method === "POST" && pathname === "/api/github/connect") {
+    const { sessionId, username, token } = await readJsonBody(req);
+    const session = findSession(sessionId);
+
+    if (!session) return sendJson(res, 404, { error: "Session not found." });
+    if (!username || !token) {
+      return sendJson(res, 400, { error: "GitHub username and token are required." });
+    }
+
+    if (!token.startsWith("gh")) {
+      return sendJson(res, 400, { error: "Token must look like a GitHub token (gh*)." });
+    }
+
+    session.githubConnection = {
+      username,
+      connectedAt: new Date().toISOString()
+    };
+
+    return sendJson(res, 200, {
+      message: `GitHub connected as ${username}.`,
+      githubConnection: session.githubConnection
+    });
+  }
+
   if (req.method === "POST" && pathname === "/api/repo/pull") {
     const { sessionId, repoUrl, branch } = await readJsonBody(req);
     const session = findSession(sessionId);
@@ -179,14 +210,22 @@ async function handleApiRoutes(req, res, pathname) {
       return sendJson(res, 400, { error: "A valid git repository URL is required." });
     }
 
+    const repoHost = new URL(repoUrl).hostname.toLowerCase();
+    const isGithubRepo = repoHost.includes("github.com");
+
+    if (isGithubRepo && !session.githubConnection) {
+      return sendJson(res, 403, { error: "Connect a GitHub account before pulling GitHub repositories." });
+    }
+
     session.repoUrl = repoUrl;
     session.branch = branch || "main";
+    session.repoLoaded = true;
 
     return sendJson(res, 200, { message: "Repository synced and indexed.", session });
   }
 
   /**
-   * Stage 4a: MCP server management routes.
+   * Stage 4b: MCP server management routes.
    * Why this exists: provides the scaffolding for connecting development services
    * (for example Supabase/Cloudflare/GitHub) into a single MCP-aware control plane.
    */
