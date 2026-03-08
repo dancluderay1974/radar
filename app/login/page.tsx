@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -10,30 +10,17 @@ import { Code2, Github, Loader2 } from "lucide-react"
 
 const MAIN_DOMAIN = "https://e-yar.com"
 
-export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get("redirect")
-
-  const handleGitHubSignIn = async () => {
-    setIsLoading(true)
-    
-    // If we're not on the main domain and no redirect param, redirect to main domain for OAuth
-    const currentHost = typeof window !== "undefined" ? window.location.origin : ""
-    const isMainDomain = currentHost.includes("e-yar.com")
-    
-    if (!isMainDomain && !redirectUrl) {
-      // Redirect to main domain with current URL as redirect parameter
-      const returnUrl = encodeURIComponent(currentHost + "/dashboard")
-      window.location.href = `${MAIN_DOMAIN}/login?redirect=${returnUrl}`
-      return
-    }
-    
-    // If we have a redirect URL (we're on main domain handling OAuth), use it as callback
-    const callbackUrl = redirectUrl || "/dashboard"
-    await signIn("github", { callbackUrl })
-  }
-
+/**
+ * Step 1: Render the shared login shell so the page keeps a stable layout
+ * while the client-only search param state is resolving under Suspense.
+ */
+function LoginShell({
+  isLoading,
+  onSignIn,
+}: {
+  isLoading: boolean
+  onSignIn: () => Promise<void>
+}) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4">
       <Link href="/" className="mb-8 flex items-center gap-2">
@@ -51,12 +38,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button 
-            onClick={handleGitHubSignIn} 
-            className="w-full" 
-            size="lg"
-            disabled={isLoading}
-          >
+          <Button onClick={onSignIn} className="w-full" size="lg" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -75,9 +57,7 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Why GitHub?
-              </span>
+              <span className="bg-card px-2 text-muted-foreground">Why GitHub?</span>
             </div>
           </div>
 
@@ -115,5 +95,47 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+/**
+ * Step 2: Read URL search params inside a Suspense-enabled component.
+ * Next.js requires useSearchParams to live under a Suspense boundary during prerender.
+ */
+function LoginPageContent() {
+  const [isLoading, setIsLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get("redirect")
+
+  /**
+   * Step 3: Normalize auth redirect behavior between custom domains and the main domain.
+   */
+  const handleGitHubSignIn = async () => {
+    setIsLoading(true)
+
+    const currentHost = typeof window !== "undefined" ? window.location.origin : ""
+    const isMainDomain = currentHost.includes("e-yar.com")
+
+    if (!isMainDomain && !redirectUrl) {
+      const returnUrl = encodeURIComponent(currentHost + "/dashboard")
+      window.location.href = `${MAIN_DOMAIN}/login?redirect=${returnUrl}`
+      return
+    }
+
+    const callbackUrl = redirectUrl || "/dashboard"
+    await signIn("github", { callbackUrl })
+  }
+
+  return <LoginShell isLoading={isLoading} onSignIn={handleGitHubSignIn} />
+}
+
+/**
+ * Step 4: Provide a resilient page-level Suspense boundary so static generation succeeds.
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginShell isLoading={false} onSignIn={async () => undefined} />}>
+      <LoginPageContent />
+    </Suspense>
   )
 }
