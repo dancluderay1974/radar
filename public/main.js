@@ -1,30 +1,41 @@
 /**
  * Stage 1: Shared UI state.
- * Why this exists: tracks selected node, current user, and session metadata so all
- * controls in the workspace remain synchronized.
+ * Why this exists: tracks selected node, active user, and session metadata so every
+ * interaction area (left rail + top rail + preview) stays synchronized.
  */
 const state = {
   sessionId: "session-demo",
   selectedNodeId: null,
   activeUserEmail: "",
-  chat: []
+  chat: [],
+  mcpServers: []
 };
 
 /**
  * Stage 2: DOM references.
- * Why this exists: centralizing element lookups avoids duplication and keeps each
- * workflow function clear and easy to test.
+ * Why this exists: centralizing lookups keeps handlers concise and makes future UI
+ * extension less error-prone.
  */
 const elements = {
   repoUrl: document.getElementById("repoUrl"),
   repoBranch: document.getElementById("repoBranch"),
   syncRepoButton: document.getElementById("syncRepoButton"),
   repoStatus: document.getElementById("repoStatus"),
+  mcpService: document.getElementById("mcpService"),
+  mcpLabel: document.getElementById("mcpLabel"),
+  mcpEndpoint: document.getElementById("mcpEndpoint"),
+  mcpConnectButton: document.getElementById("mcpConnectButton"),
+  mcpRefreshButton: document.getElementById("mcpRefreshButton"),
+  mcpStatus: document.getElementById("mcpStatus"),
+  mcpServers: document.getElementById("mcpServers"),
   signupEmail: document.getElementById("signupEmail"),
   signupPassword: document.getElementById("signupPassword"),
   signupPlan: document.getElementById("signupPlan"),
   signupButton: document.getElementById("signupButton"),
   signupStatus: document.getElementById("signupStatus"),
+  quickLoginButton: document.getElementById("quickLoginButton"),
+  quickLoginStatus: document.getElementById("quickLoginStatus"),
+  activeUserBadge: document.getElementById("activeUserBadge"),
   chatLog: document.getElementById("chatLog"),
   chatInput: document.getElementById("chatInput"),
   sendChatButton: document.getElementById("sendChatButton"),
@@ -36,9 +47,9 @@ const elements = {
 };
 
 /**
- * Stage 3: Rendering helpers.
- * Why this exists: isolates UI updates from network flows and keeps the behavior
- * deterministic when asynchronous requests resolve.
+ * Stage 3: Rendering and status helpers.
+ * Why this exists: separates DOM drawing from network workflows and makes user
+ * feedback explicit for each interaction state.
  */
 function renderChat() {
   elements.chatLog.innerHTML = "";
@@ -58,10 +69,49 @@ function setStatus(target, message, tone = "info") {
   target.dataset.tone = tone;
 }
 
+function renderActiveUser() {
+  elements.activeUserBadge.textContent = state.activeUserEmail
+    ? `Logged in: ${state.activeUserEmail}`
+    : "Not logged in";
+}
+
+function renderMcpServers() {
+  elements.mcpServers.innerHTML = "";
+
+  if (!state.mcpServers.length) {
+    elements.mcpServers.innerHTML = '<p class="muted">No MCP servers connected yet.</p>';
+    return;
+  }
+
+  state.mcpServers.forEach((server) => {
+    const item = document.createElement("article");
+    item.className = "mcp-card";
+    item.innerHTML = `
+      <div class="mcp-card-row">
+        <strong>${server.label}</strong>
+        <span class="status-chip small">${server.status}</span>
+      </div>
+      <p class="mcp-meta">${server.service} · ${server.endpoint}</p>
+      <p class="mcp-meta">Capabilities: ${server.capabilities.join(", ")}</p>
+      <button data-server-id="${server.id}" data-tool="list_tables" class="mcp-invoke secondary">Test Tool</button>
+    `;
+    elements.mcpServers.appendChild(item);
+  });
+
+  const invokeButtons = Array.from(document.querySelectorAll(".mcp-invoke"));
+  invokeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const serverId = button.getAttribute("data-server-id");
+      const toolName = button.getAttribute("data-tool") || "diagnostics";
+      await invokeMcpTool(serverId, toolName);
+    });
+  });
+}
+
 /**
  * Stage 4: API workflows.
- * Why this exists: each product flow maps to one backend capability and includes
- * defensive checks for user guidance.
+ * Why this exists: each product action maps to one backend endpoint and applies
+ * strong guardrails to keep the demo resilient.
  */
 async function loadSession() {
   const response = await fetch(`/api/sessions/${state.sessionId}`);
@@ -71,6 +121,61 @@ async function loadSession() {
   elements.repoUrl.value = session.repoUrl || "";
   elements.repoBranch.value = session.branch || "main";
   renderChat();
+  renderActiveUser();
+  await refreshMcpServers();
+}
+
+async function connectMcpServer() {
+  const payload = {
+    service: elements.mcpService.value,
+    label: elements.mcpLabel.value.trim(),
+    endpoint: elements.mcpEndpoint.value.trim()
+  };
+
+  const response = await fetch("/api/mcp/servers/connect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    setStatus(elements.mcpStatus, data.error || "MCP connect failed", "error");
+    return;
+  }
+
+  setStatus(elements.mcpStatus, `Connected ${data.server.label}.`, "success");
+  elements.mcpLabel.value = "";
+  await refreshMcpServers();
+}
+
+async function refreshMcpServers() {
+  const response = await fetch("/api/mcp/servers");
+  const data = await response.json();
+
+  if (!response.ok) {
+    setStatus(elements.mcpStatus, data.error || "Failed to load MCP servers", "error");
+    return;
+  }
+
+  state.mcpServers = data.servers || [];
+  renderMcpServers();
+}
+
+async function invokeMcpTool(serverId, toolName) {
+  const response = await fetch(`/api/mcp/servers/${encodeURIComponent(serverId)}/invoke`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ toolName, payload: { requestedFrom: "dashboard-ui" } })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    setStatus(elements.mcpStatus, data.error || "MCP tool invocation failed", "error");
+    return;
+  }
+
+  setStatus(elements.mcpStatus, `${toolName} executed on ${serverId}.`, "success");
 }
 
 async function signup() {
@@ -94,7 +199,32 @@ async function signup() {
 
   state.activeUserEmail = payload.email;
   elements.billingEmail.value = payload.email;
+  renderActiveUser();
   setStatus(elements.signupStatus, `Created account on ${data.user.plan} plan.`, "success");
+}
+
+async function quickLogin() {
+  const demoEmail = "demo@e-yar.com";
+  const payload = { email: demoEmail, password: "demo-password", plan: "pro" };
+
+  const response = await fetch("/api/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  // Stage 4a: "already exists" is an acceptable quick-login outcome in this prototype.
+  if (!response.ok && response.status !== 409) {
+    setStatus(elements.quickLoginStatus, data.error || "Quick login failed", "error");
+    return;
+  }
+
+  state.activeUserEmail = demoEmail;
+  elements.billingEmail.value = demoEmail;
+  renderActiveUser();
+  setStatus(elements.quickLoginStatus, "Demo session ready. You can now prompt Codex.", "success");
 }
 
 async function syncRepository() {
@@ -121,7 +251,7 @@ async function syncRepository() {
 
 async function sendChat() {
   if (!state.activeUserEmail) {
-    setStatus(elements.chatStatus, "Create an account before chatting.", "error");
+    setStatus(elements.chatStatus, "Use Quick Login or create an account before chatting.", "error");
     return;
   }
 
@@ -176,8 +306,8 @@ async function refreshBilling() {
 
 /**
  * Stage 5: Event wiring.
- * Why this exists: binds user interactions and cross-window click targeting from
- * preview iframe back into chat context.
+ * Why this exists: binds click handlers and receives selected node IDs from the
+ * iframe so prompts can be scoped to exact visual elements.
  */
 window.addEventListener("message", (event) => {
   if (event.data?.type !== "preview-node-selected") {
@@ -188,8 +318,11 @@ window.addEventListener("message", (event) => {
   elements.selectedNode.textContent = state.selectedNodeId;
 });
 
+elements.quickLoginButton.addEventListener("click", quickLogin);
 elements.signupButton.addEventListener("click", signup);
 elements.syncRepoButton.addEventListener("click", syncRepository);
+elements.mcpConnectButton.addEventListener("click", connectMcpServer);
+elements.mcpRefreshButton.addEventListener("click", refreshMcpServers);
 elements.sendChatButton.addEventListener("click", sendChat);
 elements.billingButton.addEventListener("click", refreshBilling);
 

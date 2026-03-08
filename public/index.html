@@ -3,21 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>e-yar.com | AI Repo Builder</title>
+    <title>e-yar.com | Mission Control</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <!--
-      Stage 1: Root shell markup.
-      Why this exists: defines the high-level layout for workspace (chat + preview)
-      plus account and billing forms that mirror production SaaS concerns.
+      Stage 1: Product shell framing.
+      Why this exists: recreates a premium operations console layout with a top rail,
+      a persistent left workspace, and a central live website area as requested.
     -->
     <div class="app-shell">
-      <aside class="panel panel-chat">
-        <header class="panel-header">
-          <h1>e-yar.com</h1>
-          <p>Codex-powered UI engineering workspace</p>
+      <aside class="left-rail" aria-label="Workspace navigation and actions">
+        <header class="brand-block">
+          <div class="brand-row">
+            <h1>v0</h1>
+            <span class="status-chip">Live</span>
+          </div>
+          <p>AI shipping cockpit for Cloudflare-hosted sites.</p>
         </header>
+
+        <section class="group quick-login" aria-labelledby="quick-login-title">
+          <h2 id="quick-login-title">Quick Login</h2>
+          <p class="muted">One-click starter account so teams can test flows instantly.</p>
+          <button id="quickLoginButton" class="secondary">Continue as demo user</button>
+          <p id="quickLoginStatus" class="status"></p>
+        </section>
 
         <section class="group" aria-labelledby="repo-title">
           <h2 id="repo-title">Repository Sync</h2>
@@ -29,8 +39,36 @@
           <p id="repoStatus" class="status"></p>
         </section>
 
+        <section class="group" aria-labelledby="mcp-title">
+          <h2 id="mcp-title">MCP Integrations</h2>
+          <p class="muted">Connect development services (Supabase, Cloudflare, GitHub) through MCP.</p>
+          <label for="mcpService">Service</label>
+          <select id="mcpService">
+            <option value="supabase">Supabase</option>
+            <option value="cloudflare">Cloudflare</option>
+            <option value="github">GitHub</option>
+          </select>
+          <label for="mcpLabel">Connection label</label>
+          <input id="mcpLabel" type="text" placeholder="Supabase Production" />
+          <label for="mcpEndpoint">MCP endpoint</label>
+          <input id="mcpEndpoint" type="url" placeholder="https://project.supabase.co" />
+          <button id="mcpConnectButton">Connect MCP Server</button>
+          <button id="mcpRefreshButton" class="secondary">Refresh MCP Servers</button>
+          <p id="mcpStatus" class="status"></p>
+          <div id="mcpServers" class="mcp-list" aria-live="polite"></div>
+        </section>
+
+        <section class="group" aria-labelledby="chat-title">
+          <h2 id="chat-title">Builder Chat</h2>
+          <p class="status">Selected element: <span id="selectedNode">none</span></p>
+          <div id="chatLog" class="chat-log"></div>
+          <textarea id="chatInput" placeholder="Ask Codex to edit the repo..." rows="4"></textarea>
+          <button id="sendChatButton">Send Prompt</button>
+          <p id="chatStatus" class="status"></p>
+        </section>
+
         <section class="group" aria-labelledby="account-title">
-          <h2 id="account-title">Account Signup</h2>
+          <h2 id="account-title">Manual Signup</h2>
           <label for="signupEmail">Email</label>
           <input id="signupEmail" type="email" placeholder="founder@e-yar.com" />
           <label for="signupPassword">Password</label>
@@ -44,15 +82,6 @@
           <p id="signupStatus" class="status"></p>
         </section>
 
-        <section class="group" aria-labelledby="chat-title">
-          <h2 id="chat-title">Builder Chat</h2>
-          <p class="status">Selected element: <span id="selectedNode">none</span></p>
-          <div id="chatLog" class="chat-log"></div>
-          <textarea id="chatInput" placeholder="Ask Codex to edit the repo..." rows="4"></textarea>
-          <button id="sendChatButton">Send Prompt</button>
-          <p id="chatStatus" class="status"></p>
-        </section>
-
         <section class="group" aria-labelledby="billing-title">
           <h2 id="billing-title">Credit Billing</h2>
           <label for="billingEmail">Lookup email</label>
@@ -62,13 +91,37 @@
         </section>
       </aside>
 
-      <main class="panel panel-preview">
-        <header class="preview-header">
-          <h2>Live Preview</h2>
-          <p>Click any element in the preview to focus changes before prompting Codex.</p>
+      <section class="workspace" aria-label="Main workspace content">
+        <header class="top-rail">
+          <div>
+            <p class="eyebrow">Project</p>
+            <h2>Wales Trip Campaign Studio</h2>
+          </div>
+          <div class="top-actions">
+            <span id="activeUserBadge" class="user-badge">Not logged in</span>
+            <button class="secondary">Settings</button>
+            <button>Share</button>
+          </div>
         </header>
-        <iframe id="previewFrame" src="/preview.html" title="Live project preview"></iframe>
-      </main>
+
+        <nav class="tab-row" aria-label="Feature views">
+          <button class="tab active">Overview</button>
+          <button class="tab">Territories</button>
+          <button class="tab">Addresses</button>
+          <button class="tab">Sales Funnel</button>
+          <button class="tab">People</button>
+        </nav>
+
+        <main class="preview-stage">
+          <header class="browser-chrome">
+            <div class="browser-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <p class="url-bar">/campaigns/campaign:1772793932335</p>
+          </header>
+          <iframe id="previewFrame" src="/preview.html" title="Live project preview"></iframe>
+        </main>
+      </section>
     </div>
 
     <script type="module" src="/main.js"></script>
