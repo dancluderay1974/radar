@@ -1,444 +1,212 @@
-/**
- * Stage 1: Shared UI state.
- * Why this exists: tracks selected node, active user, and session metadata so every
- * interaction area (left rail + top rail + preview) stays synchronized.
- */
-const state = {
-  sessionId: "session-demo",
-  selectedNodeId: null,
-  activeUserEmail: "",
-  chat: [],
-  mcpServers: [],
-  githubConnection: null,
-  repoLoaded: false
-};
+const { useEffect, useMemo, useState } = React;
 
 /**
- * Stage 2: DOM references.
- * Why this exists: centralizing lookups keeps handlers concise and makes future UI
- * extension less error-prone.
+ * Stage 1: Shared constants.
+ * Why this exists: centralizing immutable defaults keeps the component logic cleaner
+ * and makes startup/reset behavior predictable for both humans and AI agents.
  */
-const elements = {
-  repoUrl: document.getElementById("repoUrl"),
-  repoBranch: document.getElementById("repoBranch"),
-  syncRepoButton: document.getElementById("syncRepoButton"),
-  repoStatus: document.getElementById("repoStatus"),
-  githubUsername: document.getElementById("githubUsername"),
-  githubToken: document.getElementById("githubToken"),
-  githubConnectButton: document.getElementById("githubConnectButton"),
-  githubStatus: document.getElementById("githubStatus"),
-  mcpService: document.getElementById("mcpService"),
-  mcpLabel: document.getElementById("mcpLabel"),
-  mcpEndpoint: document.getElementById("mcpEndpoint"),
-  mcpConnectButton: document.getElementById("mcpConnectButton"),
-  mcpRefreshButton: document.getElementById("mcpRefreshButton"),
-  mcpStatus: document.getElementById("mcpStatus"),
-  mcpServers: document.getElementById("mcpServers"),
-  signupEmail: document.getElementById("signupEmail"),
-  signupPassword: document.getElementById("signupPassword"),
-  signupPlan: document.getElementById("signupPlan"),
-  signupButton: document.getElementById("signupButton"),
-  signupStatus: document.getElementById("signupStatus"),
-  quickLoginButton: document.getElementById("quickLoginButton"),
-  quickLoginStatus: document.getElementById("quickLoginStatus"),
-  activeUserBadge: document.getElementById("activeUserBadge"),
-  chatLog: document.getElementById("chatLog"),
-  chatInput: document.getElementById("chatInput"),
-  sendChatButton: document.getElementById("sendChatButton"),
-  chatStatus: document.getElementById("chatStatus"),
-  selectedNode: document.getElementById("selectedNode"),
-  billingEmail: document.getElementById("billingEmail"),
-  billingButton: document.getElementById("billingButton"),
-  billingOutput: document.getElementById("billingOutput"),
-  previewFrame: document.getElementById("previewFrame"),
-  projectTitle: document.getElementById("projectTitle"),
-  previewUrl: document.getElementById("previewUrl"),
-  configTabs: Array.from(document.querySelectorAll(".config-tab")),
-  configPanels: Array.from(document.querySelectorAll(".config-panel"))
-};
+const DEFAULT_SESSION_ID = "session-demo";
+const CONFIG_TABS = [
+  { id: "quick", icon: "⚡", title: "Quick Login" },
+  { id: "github", icon: "🐙", title: "GitHub Access" },
+  { id: "repo", icon: "📦", title: "Repository Sync" },
+  { id: "mcp", icon: "🔌", title: "MCP Integrations" },
+  { id: "account", icon: "👤", title: "Manual Signup" },
+  { id: "billing", icon: "💳", title: "Credit Billing" }
+];
 
 /**
- * Stage 3: Rendering and status helpers.
- * Why this exists: separates DOM drawing from network workflows and makes user
- * feedback explicit for each interaction state.
+ * Stage 2: API helper.
+ * Why this exists: every feature talks to the same backend and this helper enforces
+ * one documented path for JSON encoding, decoding, and error normalization.
  */
-function renderChat() {
-  elements.chatLog.innerHTML = "";
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, data };
+}
 
-  state.chat.forEach((entry) => {
-    const bubble = document.createElement("div");
-    bubble.className = `chat-bubble ${entry.role}`;
-    bubble.innerText = `${entry.role.toUpperCase()}: ${entry.content}`;
-    elements.chatLog.appendChild(bubble);
+/**
+ * Stage 3: Main React application component.
+ * Why this exists: this component replaces imperative DOM wiring with declarative
+ * React state transitions, making the dashboard easier to reason about and evolve.
+ */
+function MissionControlApp() {
+  const [activeTab, setActiveTab] = useState("quick");
+  const [sessionId] = useState(DEFAULT_SESSION_ID);
+  const [activeUserEmail, setActiveUserEmail] = useState("");
+  const [selectedNodeId, setSelectedNodeId] = useState("none");
+  const [chat, setChat] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [repoLoaded, setRepoLoaded] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("No repository loaded");
+  const [previewUrl, setPreviewUrl] = useState("No preview loaded");
+  const [mcpServers, setMcpServers] = useState([]);
+
+  const [form, setForm] = useState({
+    githubUsername: "",
+    githubToken: "",
+    repoUrl: "",
+    repoBranch: "main",
+    mcpService: "supabase",
+    mcpLabel: "",
+    mcpEndpoint: "",
+    signupEmail: "",
+    signupPassword: "",
+    signupPlan: "starter",
+    billingEmail: ""
   });
 
-  elements.chatLog.scrollTop = elements.chatLog.scrollHeight;
-}
+  const [status, setStatus] = useState({});
 
-function setStatus(target, message, tone = "info") {
-  target.innerText = message;
-  target.dataset.tone = tone;
-}
+  const previewFrameSrc = useMemo(() => (repoLoaded ? "/preview.html" : "/preview-empty.html"), [repoLoaded]);
 
-function renderActiveUser() {
-  elements.activeUserBadge.textContent = state.activeUserEmail
-    ? `Logged in: ${state.activeUserEmail}`
-    : "Not logged in";
-}
-
-/**
- * Stage 3a: Preview rendering helper.
- * Why this exists: enforces an empty-by-default preview and only loads the project
- * canvas after a repository pull succeeds.
- */
-function renderPreviewState() {
-  if (!state.repoLoaded) {
-    elements.previewFrame.src = "/preview-empty.html";
-    elements.projectTitle.textContent = "No repository loaded";
-    elements.previewUrl.textContent = "No preview loaded";
-    return;
-  }
-
-  elements.previewFrame.src = "/preview.html";
-  elements.projectTitle.textContent = state.sessionName || "Repository preview";
-  elements.previewUrl.textContent = state.repoUrl || "/preview.html";
-}
-
-/**
- * Stage 3b: Configuration icon-tab controller.
- * Why this exists: keeps the left rail compact by showing one settings group at a
- * time while preserving direct access to all configuration workflows.
- */
-function setupConfigTabs() {
-  const tabs = elements.configTabs || [];
-  const panels = elements.configPanels || [];
-
-  if (!tabs.length || !panels.length) {
-    return;
-  }
-
-  function setActiveConfigTab(tabId) {
-    tabs.forEach((tab) => {
-      const isActive = tab.dataset.configTab === tabId;
-      tab.classList.toggle("active", isActive);
-      tab.setAttribute("aria-pressed", isActive ? "true" : "false");
+  /**
+   * Stage 4: Session bootstrap.
+   * Why this exists: on first render we load backend session state so React starts
+   * from the same data model already used by API routes.
+   */
+  useEffect(() => {
+    apiRequest(`/api/session/${encodeURIComponent(sessionId)}`).then(({ ok, data }) => {
+      if (!ok) {
+        setStatus((prev) => ({ ...prev, chat: { message: data.error || "Failed to load session.", tone: "error" } }));
+        return;
+      }
+      setChat(data.session?.chat || []);
+      setRepoLoaded(Boolean(data.session?.repoLoaded));
+      setProjectTitle(data.session?.name || "Repository preview");
+      setPreviewUrl(data.session?.repoUrl || "No preview loaded");
+      if (data.session?.githubConnection?.username) {
+        setStatus((prev) => ({
+          ...prev,
+          github: { message: `GitHub connected as ${data.session.githubConnection.username}.`, tone: "success" }
+        }));
+      }
     });
 
-    panels.forEach((panel) => {
-      const isActive = panel.dataset.configPanel === tabId;
-      panel.classList.toggle("active", isActive);
-    });
-  }
+    const onPreviewMessage = (event) => {
+      if (event.data?.type === "preview-node-selected") {
+        setSelectedNodeId(event.data.nodeId || "none");
+      }
+    };
 
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const tabId = tab.dataset.configTab;
-      setActiveConfigTab(tabId);
-    });
-  });
+    window.addEventListener("message", onPreviewMessage);
+    return () => window.removeEventListener("message", onPreviewMessage);
+  }, [sessionId]);
 
-  const defaultTab = tabs.find((tab) => tab.classList.contains("active"))?.dataset.configTab || tabs[0].dataset.configTab;
-  setActiveConfigTab(defaultTab);
-}
+  const updateField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setPanelStatus = (panel, message, tone = "info") => setStatus((prev) => ({ ...prev, [panel]: { message, tone } }));
 
-function renderMcpServers() {
-  elements.mcpServers.innerHTML = "";
+  const handleQuickLogin = async () => {
+    const payload = { email: "demo@e-yar.com", password: "demo-password", plan: "pro" };
+    const { ok, status: code, data } = await apiRequest("/api/signup", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok && code !== 409) return setPanelStatus("quick", data.error || "Quick login failed", "error");
+    setActiveUserEmail(payload.email);
+    updateField("billingEmail", payload.email);
+    setPanelStatus("quick", "Demo session ready. You can now prompt Codex.", "success");
+  };
 
-  if (!state.mcpServers.length) {
-    elements.mcpServers.innerHTML = '<p class="muted">No MCP servers connected yet.</p>';
-    return;
-  }
+  const handleGithubConnect = async () => {
+    const payload = { sessionId, username: form.githubUsername.trim(), token: form.githubToken.trim() };
+    const { ok, data } = await apiRequest("/api/github/connect", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok) return setPanelStatus("github", data.error || "GitHub connect failed", "error");
+    setPanelStatus("github", data.message, "success");
+  };
 
-  state.mcpServers.forEach((server) => {
-    const item = document.createElement("article");
-    item.className = "mcp-card";
-    item.innerHTML = `
-      <div class="mcp-card-row">
-        <strong>${server.label}</strong>
-        <span class="status-chip small">${server.status}</span>
-      </div>
-      <p class="mcp-meta">${server.service} · ${server.endpoint}</p>
-      <p class="mcp-meta">Capabilities: ${server.capabilities.join(", ")}</p>
-      <button data-server-id="${server.id}" data-tool="list_tables" class="mcp-invoke secondary">Test Tool</button>
-    `;
-    elements.mcpServers.appendChild(item);
-  });
+  const handleRepoSync = async () => {
+    const payload = { sessionId, repoUrl: form.repoUrl.trim(), branch: form.repoBranch.trim() || "main" };
+    const { ok, data } = await apiRequest("/api/repo/pull", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok) return setPanelStatus("repo", data.error || "Repository pull failed", "error");
+    setRepoLoaded(true);
+    setProjectTitle(data.session?.name || "Repository preview");
+    setPreviewUrl(data.session?.repoUrl || "/preview.html");
+    setPanelStatus("repo", `${data.message} (${data.session?.branch || "main"})`, "success");
+  };
 
-  const invokeButtons = Array.from(document.querySelectorAll(".mcp-invoke"));
-  invokeButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      const serverId = button.getAttribute("data-server-id");
-      const toolName = button.getAttribute("data-tool") || "diagnostics";
-      await invokeMcpTool(serverId, toolName);
-    });
-  });
+  const refreshMcpServers = async () => {
+    const { ok, data } = await apiRequest("/api/mcp/servers");
+    if (!ok) return setPanelStatus("mcp", data.error || "Failed to load MCP servers", "error");
+    setMcpServers(data.servers || []);
+  };
+
+  const connectMcpServer = async () => {
+    const payload = { service: form.mcpService, label: form.mcpLabel.trim(), endpoint: form.mcpEndpoint.trim() };
+    const { ok, data } = await apiRequest("/api/mcp/servers/connect", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok) return setPanelStatus("mcp", data.error || "MCP connect failed", "error");
+    setPanelStatus("mcp", `Connected ${data.server?.label || "server"}.`, "success");
+    await refreshMcpServers();
+  };
+
+  const handleSignup = async () => {
+    const payload = { email: form.signupEmail.trim(), password: form.signupPassword, plan: form.signupPlan };
+    const { ok, data } = await apiRequest("/api/signup", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok) return setPanelStatus("account", data.error || "Signup failed", "error");
+    setActiveUserEmail(payload.email);
+    updateField("billingEmail", payload.email);
+    setPanelStatus("account", `Created account on ${data.user?.plan || payload.plan} plan.`, "success");
+  };
+
+  const handleSendChat = async () => {
+    if (!activeUserEmail) return setPanelStatus("chat", "Use Quick Login or create an account before chatting.", "error");
+    if (!chatInput.trim()) return setPanelStatus("chat", "Enter a prompt first.", "error");
+
+    const payload = { sessionId, message: chatInput.trim(), selectedNodeId, userEmail: activeUserEmail };
+    const { ok, data } = await apiRequest("/api/chat", { method: "POST", body: JSON.stringify(payload) });
+    if (!ok) return setPanelStatus("chat", data.error || "Chat request failed", "error");
+    setChat(data.chat || []);
+    setChatInput("");
+    setPanelStatus("chat", `Prompt completed. Credits left: ${data.creditsRemaining}`, "success");
+  };
+
+  const handleBillingLookup = async () => {
+    if (!form.billingEmail.trim()) return setPanelStatus("billing", "Provide an email for billing lookup.", "error");
+    const { ok, data } = await apiRequest(`/api/billing/${encodeURIComponent(form.billingEmail.trim())}`);
+    setPanelStatus("billing", ok ? JSON.stringify(data, null, 2) : data.error || "Billing lookup failed", ok ? "success" : "error");
+  };
+
+  return (
+    <div className="app-shell">
+      <aside className="left-rail" aria-label="Workspace configuration tools">
+        <header className="brand-block"><div className="brand-row"><h1>v0</h1><span className="status-chip">Live</span></div><p>AI shipping cockpit for Cloudflare-hosted sites.</p></header>
+        <div className="config-layout">
+          <nav className="config-nav" aria-label="Configuration categories">
+            {CONFIG_TABS.map((tab) => (
+              <button key={tab.id} className={`config-tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)} title={tab.title}>{tab.icon}</button>
+            ))}
+          </nav>
+          <div className="config-content">
+            {activeTab === "quick" && <section className="group config-panel active"><h2>Quick Login</h2><p className="muted">One-click starter account so teams can test flows instantly.</p><button className="secondary" onClick={handleQuickLogin}>Continue as demo user</button><p className="status" data-tone={status.quick?.tone}>{status.quick?.message}</p></section>}
+            {activeTab === "github" && <section className="group config-panel active"><h2>GitHub Access</h2><input placeholder="octocat" value={form.githubUsername} onChange={(e) => updateField("githubUsername", e.target.value)} /><input type="password" placeholder="ghp_***" value={form.githubToken} onChange={(e) => updateField("githubToken", e.target.value)} /><button className="secondary" onClick={handleGithubConnect}>Connect GitHub</button><p className="status" data-tone={status.github?.tone}>{status.github?.message}</p></section>}
+            {activeTab === "repo" && <section className="group config-panel active"><h2>Repository Sync</h2><input type="url" placeholder="https://github.com/org/repo" value={form.repoUrl} onChange={(e) => updateField("repoUrl", e.target.value)} /><input placeholder="main" value={form.repoBranch} onChange={(e) => updateField("repoBranch", e.target.value)} /><button onClick={handleRepoSync}>Pull Repository</button><p className="status" data-tone={status.repo?.tone}>{status.repo?.message}</p></section>}
+            {activeTab === "mcp" && <section className="group config-panel active"><h2>MCP Integrations</h2><select value={form.mcpService} onChange={(e) => updateField("mcpService", e.target.value)}><option value="supabase">Supabase</option><option value="cloudflare">Cloudflare</option><option value="github">GitHub</option></select><input placeholder="Supabase Demo" value={form.mcpLabel} onChange={(e) => updateField("mcpLabel", e.target.value)} /><input placeholder="https://example-project.supabase.co" value={form.mcpEndpoint} onChange={(e) => updateField("mcpEndpoint", e.target.value)} /><div className="button-row"><button onClick={connectMcpServer}>Connect MCP Server</button><button className="secondary" onClick={refreshMcpServers}>Refresh</button></div><p className="status" data-tone={status.mcp?.tone}>{status.mcp?.message}</p><div>{mcpServers.map((server) => <article className="mcp-card" key={server.id}><strong>{server.label}</strong><p className="mcp-meta">{server.service} · {server.endpoint}</p></article>)}</div></section>}
+            {activeTab === "account" && <section className="group config-panel active"><h2>Manual Signup</h2><input type="email" placeholder="you@example.com" value={form.signupEmail} onChange={(e) => updateField("signupEmail", e.target.value)} /><input type="password" placeholder="••••••••" value={form.signupPassword} onChange={(e) => updateField("signupPassword", e.target.value)} /><select value={form.signupPlan} onChange={(e) => updateField("signupPlan", e.target.value)}><option value="starter">Starter</option><option value="pro">Pro</option></select><button onClick={handleSignup}>Create Account</button><p className="status" data-tone={status.account?.tone}>{status.account?.message}</p></section>}
+            {activeTab === "billing" && <section className="group config-panel active"><h2>Credit Billing</h2><input type="email" placeholder="billing@example.com" value={form.billingEmail} onChange={(e) => updateField("billingEmail", e.target.value)} /><button className="secondary" onClick={handleBillingLookup}>Load Billing</button><pre>{status.billing?.message}</pre></section>}
+          </div>
+        </div>
+      </aside>
+
+      <main className="workspace">
+        <header className="top-rail"><h2>{projectTitle}</h2><span id="activeUserBadge">{activeUserEmail ? `Logged in: ${activeUserEmail}` : "Not logged in"}</span><code>{previewUrl}</code></header>
+        <section className="collab-stage">
+          <section className="group chat-stage">
+            <div className="chat-log">{chat.map((entry, index) => <div key={`${entry.role}-${index}`} className={`chat-bubble ${entry.role}`}>{entry.role.toUpperCase()}: {entry.content}</div>)}</div>
+            <div className="chat-controls"><input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask Codex to update the selected element..." /><button onClick={handleSendChat}>Send</button></div>
+            <p className="status" data-tone={status.chat?.tone}>{status.chat?.message}</p>
+            <p className="muted">Selected node: <strong>{selectedNodeId}</strong></p>
+          </section>
+          <section className="preview-stage"><div className="browser-chrome"><div className="browser-dots"><span></span><span></span><span></span></div><p className="url-bar">{previewUrl}</p></div><iframe id="previewFrame" title="Project preview" src={previewFrameSrc}></iframe></section>
+        </section>
+      </main>
+    </div>
+  );
 }
 
 /**
- * Stage 4: API workflows.
- * Why this exists: each product action maps to one backend endpoint and applies
- * strong guardrails to keep the demo resilient.
+ * Stage 5: React application boot.
+ * Why this exists: this is the single mount operation that hands DOM control to
+ * React and starts the declarative application lifecycle.
  */
-async function loadSession() {
-  const response = await fetch(`/api/sessions/${state.sessionId}`);
-  const session = await response.json();
-
-  state.chat = session.chat || [];
-  state.repoUrl = session.repoUrl || "";
-  state.sessionName = session.name || "";
-  state.repoLoaded = Boolean(session.repoLoaded);
-  state.githubConnection = session.githubConnection || null;
-
-  elements.repoUrl.value = session.repoUrl || "";
-  elements.repoBranch.value = session.branch || "main";
-  if (state.githubConnection?.username) {
-    elements.githubUsername.value = state.githubConnection.username;
-    setStatus(elements.githubStatus, `GitHub connected as ${state.githubConnection.username}.`, "success");
-  }
-
-  renderChat();
-  renderActiveUser();
-  renderPreviewState();
-  await refreshMcpServers();
-}
-
-/**
- * Stage 4a: GitHub account connectivity flow.
- * Why this exists: lets users explicitly connect GitHub credentials before attempting
- * repository pulls that depend on GitHub access.
- */
-async function connectGithub() {
-  const payload = {
-    sessionId: state.sessionId,
-    username: elements.githubUsername.value.trim(),
-    token: elements.githubToken.value.trim()
-  };
-
-  const response = await fetch("/api/github/connect", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.githubStatus, data.error || "GitHub connection failed", "error");
-    return;
-  }
-
-  state.githubConnection = data.githubConnection;
-  elements.githubToken.value = "";
-  setStatus(elements.githubStatus, data.message, "success");
-}
-
-async function connectMcpServer() {
-  const payload = {
-    service: elements.mcpService.value,
-    label: elements.mcpLabel.value.trim(),
-    endpoint: elements.mcpEndpoint.value.trim()
-  };
-
-  const response = await fetch("/api/mcp/servers/connect", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.mcpStatus, data.error || "MCP connect failed", "error");
-    return;
-  }
-
-  setStatus(elements.mcpStatus, `Connected ${data.server.label}.`, "success");
-  elements.mcpLabel.value = "";
-  await refreshMcpServers();
-}
-
-async function refreshMcpServers() {
-  const response = await fetch("/api/mcp/servers");
-  const data = await response.json();
-
-  if (!response.ok) {
-    setStatus(elements.mcpStatus, data.error || "Failed to load MCP servers", "error");
-    return;
-  }
-
-  state.mcpServers = data.servers || [];
-  renderMcpServers();
-}
-
-async function invokeMcpTool(serverId, toolName) {
-  const response = await fetch(`/api/mcp/servers/${encodeURIComponent(serverId)}/invoke`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ toolName, payload: { requestedFrom: "dashboard-ui" } })
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.mcpStatus, data.error || "MCP tool invocation failed", "error");
-    return;
-  }
-
-  setStatus(elements.mcpStatus, `${toolName} executed on ${serverId}.`, "success");
-}
-
-async function signup() {
-  const payload = {
-    email: elements.signupEmail.value.trim(),
-    password: elements.signupPassword.value,
-    plan: elements.signupPlan.value
-  };
-
-  const response = await fetch("/api/signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.signupStatus, data.error || "Signup failed", "error");
-    return;
-  }
-
-  state.activeUserEmail = payload.email;
-  elements.billingEmail.value = payload.email;
-  renderActiveUser();
-  setStatus(elements.signupStatus, `Created account on ${data.user.plan} plan.`, "success");
-}
-
-async function quickLogin() {
-  const demoEmail = "demo@e-yar.com";
-  const payload = { email: demoEmail, password: "demo-password", plan: "pro" };
-
-  const response = await fetch("/api/signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-
-  // Stage 4b: "already exists" is an acceptable quick-login outcome in this prototype.
-  if (!response.ok && response.status !== 409) {
-    setStatus(elements.quickLoginStatus, data.error || "Quick login failed", "error");
-    return;
-  }
-
-  state.activeUserEmail = demoEmail;
-  elements.billingEmail.value = demoEmail;
-  renderActiveUser();
-  setStatus(elements.quickLoginStatus, "Demo session ready. You can now prompt Codex.", "success");
-}
-
-async function syncRepository() {
-  const payload = {
-    sessionId: state.sessionId,
-    repoUrl: elements.repoUrl.value.trim(),
-    branch: elements.repoBranch.value.trim() || "main"
-  };
-
-  const response = await fetch("/api/repo/pull", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.repoStatus, data.error || "Repo sync failed", "error");
-    return;
-  }
-
-  state.repoLoaded = true;
-  state.repoUrl = data.session.repoUrl;
-  state.sessionName = data.session.name;
-  renderPreviewState();
-  setStatus(elements.repoStatus, `${data.message} (${data.session.branch})`, "success");
-}
-
-async function sendChat() {
-  if (!state.activeUserEmail) {
-    setStatus(elements.chatStatus, "Use Quick Login or create an account before chatting.", "error");
-    return;
-  }
-
-  const message = elements.chatInput.value.trim();
-  if (!message) {
-    setStatus(elements.chatStatus, "Enter a prompt first.", "error");
-    return;
-  }
-
-  const payload = {
-    sessionId: state.sessionId,
-    message,
-    selectedNodeId: state.selectedNodeId,
-    userEmail: state.activeUserEmail
-  };
-
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    setStatus(elements.chatStatus, data.error || "Chat request failed", "error");
-    return;
-  }
-
-  state.chat = data.chat;
-  renderChat();
-  elements.chatInput.value = "";
-  setStatus(elements.chatStatus, `Prompt completed. Credits left: ${data.creditsRemaining}`, "success");
-}
-
-async function refreshBilling() {
-  const email = elements.billingEmail.value.trim();
-  if (!email) {
-    setStatus(elements.chatStatus, "Provide an email for billing lookup.", "error");
-    return;
-  }
-
-  const response = await fetch(`/api/billing/${encodeURIComponent(email)}`);
-  const data = await response.json();
-
-  if (!response.ok) {
-    elements.billingOutput.textContent = data.error || "Billing lookup failed";
-    return;
-  }
-
-  elements.billingOutput.textContent = JSON.stringify(data, null, 2);
-}
-
-/**
- * Stage 5: Event wiring.
- * Why this exists: binds click handlers and receives selected node IDs from the
- * iframe so prompts can be scoped to exact visual elements.
- */
-window.addEventListener("message", (event) => {
-  if (event.data?.type !== "preview-node-selected") {
-    return;
-  }
-
-  state.selectedNodeId = event.data.nodeId;
-  elements.selectedNode.textContent = state.selectedNodeId;
-});
-
-setupConfigTabs();
-
-elements.quickLoginButton.addEventListener("click", quickLogin);
-elements.signupButton.addEventListener("click", signup);
-elements.githubConnectButton.addEventListener("click", connectGithub);
-elements.syncRepoButton.addEventListener("click", syncRepository);
-elements.mcpConnectButton.addEventListener("click", connectMcpServer);
-elements.mcpRefreshButton.addEventListener("click", refreshMcpServers);
-elements.sendChatButton.addEventListener("click", sendChat);
-elements.billingButton.addEventListener("click", refreshBilling);
-
-loadSession().catch(() => {
-  setStatus(elements.chatStatus, "Failed to load session.", "error");
-});
+ReactDOM.createRoot(document.getElementById("root")).render(<MissionControlApp />);

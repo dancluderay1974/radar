@@ -8,140 +8,25 @@
   </head>
   <body>
     <!--
-      Stage 1: Product shell framing.
-      Why this exists: recreates a premium operations console layout with a top rail,
-      a persistent configuration column, and a central collaborative workspace.
+      Stage 1: React application mount target.
+      Why this exists: React needs a single root node so it can own UI rendering,
+      state updates, and event delegation across the mission-control experience.
     -->
-    <div class="app-shell">
-      <aside class="left-rail" aria-label="Workspace configuration tools">
-        <header class="brand-block">
-          <div class="brand-row">
-            <h1>v0</h1>
-            <span class="status-chip">Live</span>
-          </div>
-          <p>AI shipping cockpit for Cloudflare-hosted sites.</p>
-        </header>
+    <div id="root"></div>
 
-        <div class="config-layout">
-          <nav class="config-nav" aria-label="Configuration categories">
-            <button class="config-tab active" data-config-tab="quick" title="Quick Login" aria-label="Quick Login">⚡</button>
-            <button class="config-tab" data-config-tab="github" title="GitHub Access" aria-label="GitHub Access">🐙</button>
-            <button class="config-tab" data-config-tab="repo" title="Repository Sync" aria-label="Repository Sync">📦</button>
-            <button class="config-tab" data-config-tab="mcp" title="MCP Integrations" aria-label="MCP Integrations">🔌</button>
-            <button class="config-tab" data-config-tab="account" title="Manual Signup" aria-label="Manual Signup">👤</button>
-            <button class="config-tab" data-config-tab="billing" title="Credit Billing" aria-label="Credit Billing">💳</button>
-          </nav>
+    <!--
+      Stage 2: Runtime React dependencies.
+      Why this exists: this prototype intentionally avoids a bundler so the app can
+      run directly from the existing Node static server while still using React.
+    -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-          <div class="config-content">
-            <section class="group config-panel active" data-config-panel="quick" aria-labelledby="quick-login-title">
-              <h2 id="quick-login-title">Quick Login</h2>
-              <p class="muted">One-click starter account so teams can test flows instantly.</p>
-              <button id="quickLoginButton" class="secondary">Continue as demo user</button>
-              <p id="quickLoginStatus" class="status"></p>
-            </section>
-
-            <section class="group config-panel" data-config-panel="github" aria-labelledby="github-title">
-              <h2 id="github-title">GitHub Access</h2>
-              <p class="muted">Connect GitHub before pulling private or organization repositories.</p>
-              <label for="githubUsername">GitHub username</label>
-              <input id="githubUsername" type="text" placeholder="octocat" />
-              <label for="githubToken">Personal access token</label>
-              <input id="githubToken" type="password" placeholder="ghp_***" />
-              <button id="githubConnectButton" class="secondary">Connect GitHub</button>
-              <p id="githubStatus" class="status"></p>
-            </section>
-
-            <section class="group config-panel" data-config-panel="repo" aria-labelledby="repo-title">
-              <h2 id="repo-title">Repository Sync</h2>
-              <label for="repoUrl">Git URL</label>
-              <input id="repoUrl" type="url" placeholder="https://github.com/org/repo" />
-              <label for="repoBranch">Branch</label>
-              <input id="repoBranch" type="text" placeholder="main" />
-              <button id="syncRepoButton">Pull Repository</button>
-              <p id="repoStatus" class="status"></p>
-            </section>
-
-            <section class="group config-panel" data-config-panel="mcp" aria-labelledby="mcp-title">
-              <h2 id="mcp-title">MCP Integrations</h2>
-              <p class="muted">Connect development services (Supabase, Cloudflare, GitHub) through MCP.</p>
-              <label for="mcpService">Service</label>
-              <select id="mcpService">
-                <option value="supabase">Supabase</option>
-                <option value="cloudflare">Cloudflare</option>
-                <option value="github">GitHub</option>
-              </select>
-              <label for="mcpLabel">Connection label</label>
-              <input id="mcpLabel" type="text" placeholder="Supabase Production" />
-              <label for="mcpEndpoint">MCP endpoint</label>
-              <input id="mcpEndpoint" type="url" placeholder="https://project.supabase.co" />
-              <button id="mcpConnectButton">Connect MCP Server</button>
-              <button id="mcpRefreshButton" class="secondary">Refresh MCP Servers</button>
-              <p id="mcpStatus" class="status"></p>
-              <div id="mcpServers" class="mcp-list" aria-live="polite"></div>
-            </section>
-
-            <section class="group config-panel" data-config-panel="account" aria-labelledby="account-title">
-              <h2 id="account-title">Manual Signup</h2>
-              <label for="signupEmail">Email</label>
-              <input id="signupEmail" type="email" placeholder="founder@e-yar.com" />
-              <label for="signupPassword">Password</label>
-              <input id="signupPassword" type="password" placeholder="••••••••" />
-              <label for="signupPlan">Plan</label>
-              <select id="signupPlan">
-                <option value="starter">Starter (200 credits)</option>
-                <option value="pro">Pro (1000 credits)</option>
-              </select>
-              <button id="signupButton">Create Account</button>
-              <p id="signupStatus" class="status"></p>
-            </section>
-
-            <section class="group config-panel" data-config-panel="billing" aria-labelledby="billing-title">
-              <h2 id="billing-title">Credit Billing</h2>
-              <label for="billingEmail">Lookup email</label>
-              <input id="billingEmail" type="email" placeholder="founder@e-yar.com" />
-              <button id="billingButton">Refresh Billing</button>
-              <pre id="billingOutput" class="billing-output"></pre>
-            </section>
-          </div>
-        </div>
-      </aside>
-
-      <section class="workspace" aria-label="Main workspace content">
-        <header class="top-rail">
-          <div>
-            <p class="eyebrow">Project</p>
-            <h2 id="projectTitle">No repository loaded</h2>
-          </div>
-          <div class="top-actions">
-            <span id="activeUserBadge" class="user-badge">Not logged in</span>
-            <button class="secondary">Settings</button>
-            <button>Share</button>
-          </div>
-        </header>
-
-        <main class="collab-stage">
-          <section class="chat-stage group" aria-labelledby="chat-title">
-            <h2 id="chat-title">Builder Chat</h2>
-            <p class="status">Selected element: <span id="selectedNode">none</span></p>
-            <div id="chatLog" class="chat-log"></div>
-            <textarea id="chatInput" placeholder="Ask Codex to edit the repo..." rows="7"></textarea>
-            <button id="sendChatButton">Send Prompt</button>
-            <p id="chatStatus" class="status"></p>
-          </section>
-
-          <section class="preview-stage" aria-label="Live preview stage">
-            <header class="browser-chrome">
-              <div class="browser-dots" aria-hidden="true">
-                <span></span><span></span><span></span>
-              </div>
-              <p id="previewUrl" class="url-bar">No preview loaded</p>
-            </header>
-            <iframe id="previewFrame" src="/preview-empty.html" title="Live project preview"></iframe>
-          </section>
-        </main>
-      </section>
-    </div>
-
-    <script type="module" src="/main.js"></script>
+    <!--
+      Stage 3: React source entry.
+      Why this exists: Babel transpiles JSX in-browser for this prototype setup.
+    -->
+    <script type="text/babel" data-type="module" src="/main.js"></script>
   </body>
 </html>
