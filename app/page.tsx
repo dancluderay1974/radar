@@ -114,8 +114,8 @@ export default function LandingPage() {
             <div className="grid gap-12 md:grid-cols-3">
               <StepCard
                 number="01"
-                title="Connect Your Repository"
-                description="Link GitHub and pick the repo you want to sort."
+                title="Connect t' GitHub"
+                description="Connect t' GitHub, pick your repo, and get cracking."
               />
               <StepCard
                 number="02"
