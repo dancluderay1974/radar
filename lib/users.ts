@@ -9,8 +9,8 @@ export interface User {
   createdAt: Date
 }
 
-// Pre-hashed password for "dan" (bcrypt hash of password "dan")
-const DAN_PASSWORD_HASH = "$2b$10$hPcWWm/6CIZ4R0/vH/SJfO3YIXyVHYh.WV5Yqo7JVB3gqJBCfYODm"
+// Generate hash at module load time (safe in Node.js server environment)
+const DAN_PASSWORD_HASH = bcrypt.hashSync("dan", 10)
 
 // In-memory user store (replace with database in production)
 const users: User[] = [
@@ -23,6 +23,8 @@ const users: User[] = [
     createdAt: new Date("2024-01-01"),
   },
 ]
+
+console.log("[v0] Users initialized, dan hash generated")
 
 export function getUsers(): Omit<User, "passwordHash">[] {
   return users.map(({ passwordHash, ...user }) => user)
@@ -40,10 +42,16 @@ export async function validateCredentials(
   username: string,
   password: string
 ): Promise<User | null> {
+  console.log("[v0] validateCredentials called with username:", username)
   const user = getUserByUsername(username)
-  if (!user) return null
+  if (!user) {
+    console.log("[v0] User not found:", username)
+    return null
+  }
 
+  console.log("[v0] Found user:", user.username, "checking password...")
   const isValid = await bcrypt.compare(password, user.passwordHash)
+  console.log("[v0] Password valid:", isValid)
   return isValid ? user : null
 }
 

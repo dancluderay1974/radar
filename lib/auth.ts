@@ -11,7 +11,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("[v0] authorize called with:", credentials?.username)
         if (!credentials?.username || !credentials?.password) {
+          console.log("[v0] Missing credentials")
           return null
         }
 
@@ -19,6 +21,8 @@ export const authOptions: NextAuthOptions = {
           credentials.username,
           credentials.password
         )
+
+        console.log("[v0] validateCredentials returned:", user ? "user found" : "null")
 
         if (user) {
           return {
