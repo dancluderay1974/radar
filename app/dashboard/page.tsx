@@ -1,3 +1,5 @@
+export const runtime = 'edge'
+
 import { auth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
