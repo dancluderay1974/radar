@@ -1,18 +1,52 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
+/**
+ * Step 1: Read provider env vars once at module load so auth configuration is deterministic.
+ * This prevents request-time drift and makes it clear when deployment env vars are missing.
+ */
+const githubClientId = process.env.GITHUB_ID
+const githubClientSecret = process.env.GITHUB_SECRET
+
+/**
+ * Step 2: Build the provider list defensively.
+ *
+ * Why this exists:
+ * - Auth.js returns a generic "server configuration" error when an OAuth provider is misconfigured.
+ * - The `/api/auth/session` endpoint is called by `SessionProvider` on every page load.
+ * - If GitHub credentials are missing, that endpoint can 500 and flood the browser console.
+ *
+ * This guard keeps auth routes healthy in environments where GitHub OAuth vars are not yet set.
+ */
+const providers = []
+
+if (githubClientId && githubClientSecret) {
+  providers.push(
     GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
+      clientId: githubClientId,
+      clientSecret: githubClientSecret,
       authorization: {
         params: {
           scope: "read:user user:email repo",
         },
       },
-    }),
-  ],
+    })
+  )
+} else {
+  console.warn(
+    "[auth] GitHub OAuth credentials are missing. Set GITHUB_ID and GITHUB_SECRET to enable GitHub sign-in."
+  )
+}
+
+/**
+ * Step 3: Resolve Auth.js secret from both v5 (`AUTH_SECRET`) and legacy (`NEXTAUTH_SECRET`) env names.
+ * This improves compatibility across local/dev/prod deployments and prevents production session errors.
+ */
+const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers,
+  secret: authSecret,
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
