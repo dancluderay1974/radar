@@ -31,12 +31,30 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
+    async redirect({ url, baseUrl }) {
+      // Allow redirects to relative paths
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      
+      // Allow redirects to the same origin
+      if (url.startsWith(baseUrl)) return url
+      
+      // Allow redirects to vusercontent preview domains
+      if (url.includes("vusercontent.net")) return url
+      
+      // Allow redirects to e-yar.com
+      if (url.includes("e-yar.com")) return url
+      
+      // Default to baseUrl for security
+      return baseUrl
+    },
   },
   pages: {
     signIn: "/login",
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
+  trustHost: true,
 }
