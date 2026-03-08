@@ -71,3 +71,6 @@ NEXTAUTH_URL=http://localhost:3000
 4. Implement real database persistence
 5. Add warehouse management system-specific features
 
+## Build Trigger Notes
+
+- 2026-03-08: Added a no-op documentation update to intentionally trigger a fresh CI/CD build.
