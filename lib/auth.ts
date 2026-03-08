@@ -1,54 +1,33 @@
 import type { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { validateCredentials } from "./users"
+import GitHubProvider from "next-auth/providers/github"
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        console.log("[v0] authorize called with:", credentials?.username)
-        if (!credentials?.username || !credentials?.password) {
-          console.log("[v0] Missing credentials")
-          return null
-        }
-
-        const user = await validateCredentials(
-          credentials.username,
-          credentials.password
-        )
-
-        console.log("[v0] validateCredentials returned:", user ? "user found" : "null")
-
-        if (user) {
-          return {
-            id: user.id,
-            name: user.username,
-            email: user.email,
-            role: user.role,
-          }
-        }
-
-        return null
+    GitHubProvider({
+      clientId: process.env.GITHUB_ID || "",
+      clientSecret: process.env.GITHUB_SECRET || "",
+      authorization: {
+        params: {
+          scope: "read:user user:email repo",
+        },
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.role = user.role
         token.id = user.id
+      }
+      // Store GitHub access token for API calls
+      if (account) {
+        token.accessToken = account.access_token
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string
         session.user.id = token.id as string
+        session.user.accessToken = token.accessToken as string
       }
       return session
     },

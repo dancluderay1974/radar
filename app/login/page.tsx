@@ -2,44 +2,17 @@
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Code2, Loader2 } from "lucide-react"
+import { Code2, Github, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+  const handleGitHubSignIn = async () => {
     setIsLoading(true)
-
-    try {
-      const result = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError("Invalid username or password")
-      } else {
-        router.push("/dashboard")
-        router.refresh()
-      }
-    } catch {
-      setError("An error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
+    await signIn("github", { callbackUrl: "/dashboard" })
   }
 
   return (
@@ -53,64 +26,71 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+          <CardTitle className="text-2xl">Welcome to e-yar</CardTitle>
           <CardDescription>
-            Sign in to your account to continue
+            Sign in with GitHub to connect your repositories and start building with AI
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
+        <CardContent className="space-y-4">
+          <Button 
+            onClick={handleGitHubSignIn} 
+            className="w-full" 
+            size="lg"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>
+                <Github className="mr-2 h-5 w-5" />
+                Continue with GitHub
+              </>
             )}
+          </Button>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Why GitHub?
+              </span>
+            </div>
+          </div>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Demo credentials: dan / dan</p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground" />
+              Access your repositories directly
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground" />
+              Pull, edit, and push code seamlessly
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-foreground" />
+              AI understands your codebase context
+            </p>
           </div>
         </CardContent>
       </Card>
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
+        By signing in, you agree to our{" "}
+        <Link href="/terms" className="underline hover:text-foreground">
+          Terms of Service
+        </Link>
+        {" "}and{" "}
+        <Link href="/privacy" className="underline hover:text-foreground">
+          Privacy Policy
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center text-sm text-muted-foreground">
         <Link href="/" className="hover:underline">
           Back to home
         </Link>
