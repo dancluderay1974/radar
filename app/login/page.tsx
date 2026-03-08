@@ -1,18 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Code2, Github, Loader2 } from "lucide-react"
 
+const MAIN_DOMAIN = "https://e-yar.com"
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get("redirect")
 
   const handleGitHubSignIn = async () => {
     setIsLoading(true)
-    await signIn("github", { callbackUrl: "/dashboard" })
+    
+    // If we're not on the main domain and no redirect param, redirect to main domain for OAuth
+    const currentHost = typeof window !== "undefined" ? window.location.origin : ""
+    const isMainDomain = currentHost.includes("e-yar.com")
+    
+    if (!isMainDomain && !redirectUrl) {
+      // Redirect to main domain with current URL as redirect parameter
+      const returnUrl = encodeURIComponent(currentHost + "/dashboard")
+      window.location.href = `${MAIN_DOMAIN}/login?redirect=${returnUrl}`
+      return
+    }
+    
+    // If we have a redirect URL (we're on main domain handling OAuth), use it as callback
+    const callbackUrl = redirectUrl || "/dashboard"
+    await signIn("github", { callbackUrl })
   }
 
   return (
