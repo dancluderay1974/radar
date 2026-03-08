@@ -24,8 +24,6 @@ const users: User[] = [
   },
 ]
 
-console.log("[v0] Users initialized, dan hash generated")
-
 export function getUsers(): Omit<User, "passwordHash">[] {
   return users.map(({ passwordHash, ...user }) => user)
 }
@@ -42,16 +40,12 @@ export async function validateCredentials(
   username: string,
   password: string
 ): Promise<User | null> {
-  console.log("[v0] validateCredentials called with username:", username)
   const user = getUserByUsername(username)
   if (!user) {
-    console.log("[v0] User not found:", username)
     return null
   }
 
-  console.log("[v0] Found user:", user.username, "checking password...")
   const isValid = await bcrypt.compare(password, user.passwordHash)
-  console.log("[v0] Password valid:", isValid)
   return isValid ? user : null
 }
 
