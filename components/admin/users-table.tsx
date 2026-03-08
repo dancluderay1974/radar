@@ -31,7 +31,7 @@ interface User {
 }
 
 interface AdminUsersTableProps {
-  initialUsers: Omit<User, "passwordHash">[]
+  initialUsers: User[]
 }
 
 export function AdminUsersTable({ initialUsers }: AdminUsersTableProps) {
@@ -44,13 +44,12 @@ export function AdminUsersTable({ initialUsers }: AdminUsersTableProps) {
   // Form state
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+
   const [role, setRole] = useState<"admin" | "user">("user")
 
   const resetForm = () => {
     setUsername("")
     setEmail("")
-    setPassword("")
     setRole("user")
   }
 
@@ -62,7 +61,7 @@ export function AdminUsersTable({ initialUsers }: AdminUsersTableProps) {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password, role }),
+        body: JSON.stringify({ username, email, role }),
       })
 
       if (res.ok) {
@@ -160,16 +159,6 @@ export function AdminUsersTable({ initialUsers }: AdminUsersTableProps) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="add-password">Password</Label>
-                  <Input
-                    id="add-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                 </div>
