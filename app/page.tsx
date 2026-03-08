@@ -37,29 +37,30 @@ export default function LandingPage() {
           <div className="mx-auto max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4" />
-              AI-Powered Development
+              AI Web Development, Yorkshire Style
             </div>
             
             <h1 className="mb-6 text-balance text-5xl font-bold tracking-tight sm:text-6xl">
-              Build apps with AI,
+              Reet Proper AI
               <br />
-              <span className="text-muted-foreground">not just code.</span>
+              <span className="text-muted-foreground">for building websites.</span>
             </h1>
             
             <p className="mx-auto mb-10 max-w-2xl text-pretty text-lg text-muted-foreground">
-              Connect your GitHub repositories and let AI help you build, edit, and deploy 
-              your applications. Describe what you want in plain English and watch it come to life.
+              When t&apos;server&apos;s sulking and there&apos;s trouble at mill, e-yar helps you build,
+              fix, and ship websites without all t&apos;faff. Tell it what you want in plain English,
+              and it gets cracking.
             </p>
             
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/login">
                 <Button size="lg" className="min-w-[200px]">
-                  Start Building
+                  Get It Sorted
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Button variant="outline" size="lg" className="min-w-[200px]">
-                View Demo
+                See It Working
               </Button>
             </div>
           </div>
@@ -70,28 +71,29 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
               <h2 className="mb-4 text-3xl font-bold tracking-tight">
-                Everything you need to build faster
+                Everything You Need, Nowt You Don&apos;t
               </h2>
               <p className="mx-auto max-w-2xl text-muted-foreground">
-                A complete development environment powered by AI that understands your codebase.
+                A reet practical AI toolkit for building websites quickly, cleanly, and without
+                endless config nonsense.
               </p>
             </div>
             
             <div className="grid gap-8 md:grid-cols-3">
               <FeatureCard
                 icon={<GitBranch className="h-6 w-6" />}
-                title="GitHub Integration"
-                description="Connect your repositories, pull code, and push changes directly from the platform."
+                title="GitHub, Properly Connected"
+                description="Link your repos, pull code, and push changes straight from t&apos;platform. No messing about."
               />
               <FeatureCard
                 icon={<Sparkles className="h-6 w-6" />}
-                title="AI Code Generation"
-                description="Describe features in plain English. AI writes the code, you review and approve."
+                title="AI That Writes The Boring Bits"
+                description="Tell it what you need. It writes tidy code. You review it, tweak it, and crack on."
               />
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
                 title="Live Preview"
-                description="See your changes in real-time with hot module replacement and instant feedback."
+                description="See changes straight away. If summat&apos;s off, you&apos;ll spot it before it causes trouble at mill."
               />
             </div>
           </div>
@@ -102,28 +104,28 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
               <h2 className="mb-4 text-3xl font-bold tracking-tight">
-                How it works
+                How It Works
               </h2>
               <p className="mx-auto max-w-2xl text-muted-foreground">
-                Three simple steps to transform your development workflow.
+                Three simple steps and you&apos;re building websites faster than a brew goes cold.
               </p>
             </div>
             
             <div className="grid gap-12 md:grid-cols-3">
               <StepCard
                 number="01"
-                title="Connect Repository"
-                description="Link your GitHub account and select the repository you want to work with."
+                title="Connect t' GitHub"
+                description="Connect t' GitHub, pick your repo, and get cracking."
               />
               <StepCard
                 number="02"
-                title="Describe Changes"
-                description="Tell the AI what you want to build or change using natural language."
+                title="Tell It What You Need"
+                description="Describe your page or feature in plain English."
               />
               <StepCard
                 number="03"
-                title="Review & Deploy"
-                description="Preview the changes, approve them, and push directly to your repository."
+                title="Review and Ship"
+                description="Check the output, make tweaks, and deploy when it&apos;s reet proper job."
               />
             </div>
           </div>
@@ -133,14 +135,15 @@ export default function LandingPage() {
         <section className="border-t bg-foreground py-24 text-background">
           <div className="mx-auto max-w-6xl px-4 text-center">
             <h2 className="mb-4 text-3xl font-bold tracking-tight">
-              Ready to build smarter?
+              Right Then, Let&apos;s Build Summat
             </h2>
             <p className="mx-auto mb-8 max-w-2xl text-background/70">
-              Join developers who are already using AI to accelerate their workflow.
+              Stop fighting broken builds and tut development server. Let AI handle the faff so
+              you can get back to proper dev work.
             </p>
             <Link href="/login">
               <Button size="lg" variant="secondary" className="min-w-[200px]">
-                Get Started Free
+                Start Building
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -159,7 +162,7 @@ export default function LandingPage() {
               <span className="font-semibold">e-yar</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Built for developers who want to move fast.
+              Built with Yorkshire stubbornness. Less nonsense. More working software.
             </p>
           </div>
         </div>
@@ -207,4 +210,3 @@ function StepCard({
     </div>
   )
 }
-
