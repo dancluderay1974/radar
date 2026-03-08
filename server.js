@@ -20,6 +20,17 @@ const publicDir = path.join(__dirname, "public");
 
 const state = {
   users: [],
+  mcpServers: [
+    {
+      id: "mcp-supabase-demo",
+      service: "supabase",
+      label: "Supabase Demo",
+      endpoint: "https://example-project.supabase.co",
+      status: "connected",
+      capabilities: ["postgres", "auth", "storage", "edge-functions"],
+      connectedAt: new Date().toISOString()
+    }
+  ],
   sessions: [
     {
       id: "session-demo",
@@ -54,6 +65,44 @@ function estimateCreditCost(message) {
   return baseCost + lengthCost;
 }
 
+function findMcpServer(serverId) {
+  return state.mcpServers.find((server) => server.id === serverId);
+}
+
+function createMcpCapabilities(service) {
+  if (service === "supabase") {
+    return ["postgres", "auth", "storage", "edge-functions"];
+  }
+  if (service === "cloudflare") {
+    return ["workers", "d1", "kv", "r2", "pages"];
+  }
+  if (service === "github") {
+    return ["repos", "pull-requests", "issues", "actions"];
+  }
+  return ["generic-json-rpc"];
+}
+
+function simulateMcpToolResult(service, toolName, payload) {
+  if (service === "supabase" && toolName === "list_tables") {
+    return {
+      tables: ["profiles", "projects", "events", "feature_flags"],
+      note: "Prototype result: replace with real MCP transport in production."
+    };
+  }
+
+  if (service === "cloudflare" && toolName === "list_workers") {
+    return {
+      workers: ["preview-renderer", "repo-sync-webhook", "billing-meter"],
+      note: "Prototype result: replace with real Cloudflare API integration."
+    };
+  }
+
+  return {
+    echoedPayload: payload || {},
+    note: `Prototype executed '${toolName}' for '${service}'.`
+  };
+}
+
 async function readJsonBody(req) {
   const chunks = [];
   for await (const chunk of req) {
@@ -78,7 +127,7 @@ function contentTypeFor(filePath) {
 /**
  * Stage 4: API route dispatcher.
  * Why this exists: collects backend feature endpoints for signup, billing,
- * repository pull, chat, and session bootstrap.
+ * repository pull, MCP integrations, chat, and session bootstrap.
  */
 async function handleApiRoutes(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/signup") {
@@ -134,6 +183,64 @@ async function handleApiRoutes(req, res, pathname) {
     session.branch = branch || "main";
 
     return sendJson(res, 200, { message: "Repository synced and indexed.", session });
+  }
+
+  /**
+   * Stage 4a: MCP server management routes.
+   * Why this exists: provides the scaffolding for connecting development services
+   * (for example Supabase/Cloudflare/GitHub) into a single MCP-aware control plane.
+   */
+  if (req.method === "GET" && pathname === "/api/mcp/servers") {
+    return sendJson(res, 200, { servers: state.mcpServers });
+  }
+
+  if (req.method === "POST" && pathname === "/api/mcp/servers/connect") {
+    const { service, label, endpoint } = await readJsonBody(req);
+
+    if (!service || !endpoint) {
+      return sendJson(res, 400, { error: "Service and endpoint are required." });
+    }
+
+    if (!endpoint.startsWith("http")) {
+      return sendJson(res, 400, { error: "Endpoint must be a valid HTTP URL." });
+    }
+
+    const newServer = {
+      id: `mcp-${service}-${Date.now()}`,
+      service,
+      label: label || `${service} integration`,
+      endpoint,
+      status: "connected",
+      capabilities: createMcpCapabilities(service),
+      connectedAt: new Date().toISOString()
+    };
+
+    state.mcpServers.push(newServer);
+    return sendJson(res, 201, { message: "MCP server connected.", server: newServer });
+  }
+
+  if (req.method === "POST" && pathname.startsWith("/api/mcp/servers/") && pathname.endsWith("/invoke")) {
+    const parts = pathname.split("/");
+    const serverId = parts[4];
+    const server = findMcpServer(serverId);
+
+    if (!server) {
+      return sendJson(res, 404, { error: "MCP server not found." });
+    }
+
+    const { toolName, payload } = await readJsonBody(req);
+    if (!toolName) {
+      return sendJson(res, 400, { error: "toolName is required." });
+    }
+
+    const result = simulateMcpToolResult(server.service, toolName, payload);
+    return sendJson(res, 200, {
+      message: "MCP tool executed.",
+      serverId,
+      toolName,
+      result,
+      executedAt: new Date().toISOString()
+    });
   }
 
   if (req.method === "POST" && pathname === "/api/chat") {
