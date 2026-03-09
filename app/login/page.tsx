@@ -105,7 +105,13 @@ function LoginShell({
 function LoginPageContent() {
   const [isLoading, setIsLoading] = useState(false)
   const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get("redirect")
+
+  /**
+   * Step 2.1: Defensively read the redirect parameter.
+   * In mixed router compatibility scenarios, Next.js can type searchParams as nullable.
+   * Optional chaining keeps the auth flow safe during prerender and strict type checking.
+   */
+  const redirectUrl = searchParams?.get("redirect")
 
   /**
    * Step 3: Normalize auth redirect behavior between custom domains and the main domain.
