@@ -12,6 +12,12 @@
 // This keeps auth configuration centralized and type-safe across server routes.
 import { handlers } from "@/lib/auth";
 
-// Step 2: Export verb-specific handlers expected by App Router.
+// Step 2: Force this API route to run on the Edge Runtime for Cloudflare Pages.
+// Why this declaration is explicit:
+// - `@cloudflare/next-on-pages` validates that all non-static routes opt into edge runtime.
+// - Keeping the segment config in this file prevents regressions during refactors.
+export const runtime = 'edge';
+
+// Step 3: Export verb-specific handlers expected by App Router.
 // Auth.js provides the exact GET/POST signatures required by Next.js Route Handler typing.
 export const { GET, POST } = handlers;
