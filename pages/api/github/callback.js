@@ -1,6 +1,6 @@
 /**
- * GitHub OAuth Callback API Route (Next.js)
- * -----------------------------------------
+ * GitHub OAuth Callback API Route (Edge Runtime)
+ * ----------------------------------------------
  * Route: /api/github/callback
  *
  * Purpose:
@@ -8,10 +8,22 @@
  * - Exchanges `code` for an access token by calling GitHub's token endpoint.
  * - Returns GitHub's token payload as JSON.
  *
- * Deployment note:
- * - This route is intentionally implemented under /pages/api so it runs as a Next.js API
- *   route in the deployed application flow.
+ * Why Edge runtime is required:
+ * - Cloudflare Pages + @cloudflare/next-on-pages require every non-static route to be
+ *   explicitly configured for the Edge runtime.
+ * - This export allows Cloudflare's Next adapter to include this endpoint in the Pages
+ *   build output instead of failing deployment.
  */
+
+/**
+ * Stage 0: Declare Next.js route runtime configuration.
+ *
+ * Why this stage exists:
+ * - Cloudflare build validation checks API routes for explicit Edge runtime support.
+ */
+export const config = {
+  runtime: 'edge',
+};
 
 /**
  * Stage 1: Define endpoint constants.
@@ -23,29 +35,42 @@
 const GITHUB_ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 
 /**
- * Next.js API handler for GET /api/github/callback.
+ * Edge API handler for GET /api/github/callback.
  *
  * Flow stages:
  * 1) Read and validate required query parameters and environment variables.
  * 2) Exchange authorization code for access token.
  * 3) Return token response JSON to the caller.
  */
-export default async function handler(req, res) {
-  // Stage 1: Read callback query parameter and required app credentials.
-  const { code } = req.query;
+export default async function handler(request) {
+  // Stage 1: Parse callback query parameter and read required app credentials.
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
   const clientId = process.env.GITHUB_ID;
   const clientSecret = process.env.GITHUB_SECRET;
 
   if (!code) {
-    return res.status(400).json({
-      error: 'Missing required query parameter: code',
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Missing required query parameter: code',
+      }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   if (!clientId || !clientSecret) {
-    return res.status(500).json({
-      error: 'Missing required environment variables: GITHUB_ID and/or GITHUB_SECRET',
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Missing required environment variables: GITHUB_ID and/or GITHUB_SECRET',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   // Stage 2: Build and send POST request to GitHub token endpoint.
@@ -53,7 +78,7 @@ export default async function handler(req, res) {
   const body = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
-    code: Array.isArray(code) ? code[0] : code,
+    code,
   });
 
   const tokenResponse = await fetch(GITHUB_ACCESS_TOKEN_URL, {
@@ -65,14 +90,19 @@ export default async function handler(req, res) {
     body: body.toString(),
   });
 
-  // Parse JSON payload returned from GitHub and pass it through.
   const tokenData = await tokenResponse.json();
 
   // Stage 3: Return GitHub token payload as JSON.
   // We preserve GitHub's status semantics by surfacing 200 for success and 400 for token errors.
   if (!tokenResponse.ok || tokenData.error) {
-    return res.status(400).json(tokenData);
+    return new Response(JSON.stringify(tokenData), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
-  return res.status(200).json(tokenData);
+  return new Response(JSON.stringify(tokenData), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }

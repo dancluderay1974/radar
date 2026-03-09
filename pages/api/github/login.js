@@ -1,17 +1,29 @@
 /**
- * GitHub OAuth Login API Route (Next.js)
- * --------------------------------------
+ * GitHub OAuth Login API Route (Edge Runtime)
+ * -------------------------------------------
  * Route: /api/github/login
  *
  * Purpose:
  * - Starts the OAuth authorization flow for GitHub sign-in.
  * - Redirects users to GitHub's consent page using this app's configured client ID.
  *
- * Why this is implemented as a Next.js API route:
- * - The project is deployed on Cloudflare Pages, but the OAuth flow should be handled by
- *   the Next.js runtime layer (not Cloudflare Pages Functions in /functions).
- * - Keeping this in /pages/api ensures compatibility with Next.js API route conventions.
+ * Why Edge runtime is required:
+ * - Cloudflare Pages + @cloudflare/next-on-pages require all non-static routes to run
+ *   on the Edge runtime.
+ * - Exporting this route config ensures the build adapter can generate a compatible
+ *   Cloudflare Pages function for this endpoint.
  */
+
+/**
+ * Stage 0: Declare Next.js route runtime configuration.
+ *
+ * Why this stage exists:
+ * - Without this export, Cloudflare's build step fails because this API route is treated
+ *   as a Node.js runtime route instead of an Edge runtime route.
+ */
+export const config = {
+  runtime: 'edge',
+};
 
 /**
  * Stage 1: Define constants used by this route.
@@ -24,21 +36,27 @@ const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_CALLBACK_URL = 'https://e-yar.com/api/github/callback';
 
 /**
- * Next.js API handler for GET /api/github/login.
+ * Edge API handler for GET /api/github/login.
  *
  * Flow stages:
  * 1) Validate required environment variable(s).
  * 2) Build the GitHub authorize URL.
- * 3) Redirect user to GitHub OAuth.
+ * 3) Return a redirect response to GitHub OAuth.
  */
-export default function handler(req, res) {
+export default function handler() {
   // Stage 1: Ensure GITHUB_ID is available before starting OAuth flow.
   const clientId = process.env.GITHUB_ID;
 
   if (!clientId) {
-    return res.status(500).json({
-      error: 'Missing required environment variable: GITHUB_ID',
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Missing required environment variable: GITHUB_ID',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   // Stage 2: Construct the authorize URL with the required parameters.
@@ -46,6 +64,6 @@ export default function handler(req, res) {
   authorizeUrl.searchParams.set('client_id', clientId);
   authorizeUrl.searchParams.set('redirect_uri', GITHUB_CALLBACK_URL);
 
-  // Stage 3: Redirect the user agent to GitHub's OAuth authorization endpoint.
-  return res.redirect(302, authorizeUrl.toString());
+  // Stage 3: Return an HTTP redirect that sends the user agent to GitHub.
+  return Response.redirect(authorizeUrl.toString(), 302);
 }
