@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/components/providers/auth-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,7 +29,19 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        {/*
+          Stage 3: Render children directly without a global client SessionProvider.
+
+          Why this exists:
+          - The login page is fully client-rendered and previously mounted SessionProvider globally.
+          - SessionProvider eagerly calls `/api/auth/session` on mount.
+          - If auth environment variables are temporarily misconfigured in production,
+            that eager request can fail and spam the browser console before user interaction.
+
+          The app already authorizes protected areas with server-side `auth()` checks,
+          so removing the global provider keeps login UX quiet while preserving security.
+        */}
+        {children}
       </body>
     </html>
   )
