@@ -170,6 +170,24 @@ export default function LandingPage() {
   const [activeBrandIndex, setActiveBrandIndex] = useState(0)
 
   /**
+   * Step 4.1.0: Mirror the current index in a mutable ref for GSAP callbacks.
+   * Why: delayed animation callbacks need the latest index without triggering re-renders.
+   */
+  const activeBrandIndexRef = useRef(0)
+
+  /**
+   * Step 4.1.1: Count completed full rotations through the brand words.
+   * Why: product wants a one-off 10-second pause on "e-yar" after the second full loop.
+   */
+  const completedBrandCyclesRef = useRef(0)
+
+  /**
+   * Step 4.1.2: Remember whether we already used the special 10-second hold.
+   * Why: the long pause should happen only once, then the normal rotation resumes forever.
+   */
+  const didUseExtendedHoldRef = useRef(false)
+
+  /**
    * Step 4.2: Keep a ref to the header brand element that GSAP animates.
    * Why: GSAP animates DOM nodes directly, so we provide a stable element reference.
    */
@@ -182,8 +200,9 @@ export default function LandingPage() {
   const headerBrandName = ROTATING_BRAND_WORDS[activeBrandIndex]
 
   /**
-   * Step 4.4: Build a GSAP timeline that rotates brand words every 3 seconds.
-   * Why: each cycle fades/slides text out, swaps to the next word, and animates back in.
+   * Step 4.4: Build a GSAP-driven rotation loop with a one-time extended pause.
+   * Why: we need custom timing logic (10s hold after second full rotation) that is easier
+   * to express with recursive delayed calls than a fixed repeating timeline.
    */
   useEffect(() => {
     if (!headerBrandRef.current) {
@@ -191,31 +210,87 @@ export default function LandingPage() {
     }
 
     const context = gsap.context(() => {
-      const timeline = gsap.timeline({ repeat: -1 })
+      /**
+       * Stage 0: Reset runtime refs when effect mounts (supports Strict Mode remounts).
+       */
+      activeBrandIndexRef.current = 0
+      completedBrandCyclesRef.current = 0
+      didUseExtendedHoldRef.current = false
 
-      for (let step = 1; step <= ROTATING_BRAND_WORDS.length; step += 1) {
-        const nextIndex = step % ROTATING_BRAND_WORDS.length
+      /**
+       * Stage A: Keep the standard display duration for each word in seconds.
+       */
+      const defaultWordHoldSeconds = 2.3
 
-        timeline
-          .to(headerBrandRef.current, {
-            opacity: 0,
-            y: -6,
-            duration: 0.35,
-            delay: 2.3,
-            ease: "power2.in",
-          })
-          .add(() => setActiveBrandIndex(nextIndex))
-          .fromTo(
-            headerBrandRef.current,
-            { opacity: 0, y: 6 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.35,
-              ease: "power2.out",
-            },
-          )
+      /**
+       * Stage B: Define the one-off long pause once we've reached "e-yar" after
+       * completing two full cycles.
+       */
+      const extendedEyArHoldSeconds = 10
+
+      /**
+       * Stage C: Animate out current word, swap text state, animate back in.
+       * Why: this preserves the existing smooth visual motion while allowing dynamic delays.
+       */
+      const animateToNextWord = () => {
+        const currentIndex = activeBrandIndexRef.current
+        const nextIndex = (currentIndex + 1) % ROTATING_BRAND_WORDS.length
+
+        gsap.to(headerBrandRef.current, {
+          opacity: 0,
+          y: -6,
+          duration: 0.35,
+          ease: "power2.in",
+          onComplete: () => {
+            /**
+             * Stage D: Update loop counters when we wrap back to index 0 ("e-yar").
+             */
+            if (nextIndex === 0) {
+              completedBrandCyclesRef.current += 1
+            }
+
+            activeBrandIndexRef.current = nextIndex
+            setActiveBrandIndex(nextIndex)
+
+            gsap.fromTo(
+              headerBrandRef.current,
+              { opacity: 0, y: 6 },
+              {
+                opacity: 1,
+                y: 0,
+                duration: 0.35,
+                ease: "power2.out",
+                onComplete: () => {
+                  /**
+                   * Stage E: Decide how long to keep the newly visible word onscreen.
+                   * We apply the 10-second pause once, specifically on "e-yar" after
+                   * the second full cycle has completed.
+                   */
+                  const shouldUseExtendedHold =
+                    !didUseExtendedHoldRef.current &&
+                    nextIndex === 0 &&
+                    completedBrandCyclesRef.current >= 2
+
+                  const holdDurationSeconds = shouldUseExtendedHold
+                    ? extendedEyArHoldSeconds
+                    : defaultWordHoldSeconds
+
+                  if (shouldUseExtendedHold) {
+                    didUseExtendedHoldRef.current = true
+                  }
+
+                  gsap.delayedCall(holdDurationSeconds, animateToNextWord)
+                },
+              },
+            )
+          },
+        })
       }
+
+      /**
+       * Stage F: Start the first transition after the default initial hold.
+       */
+      gsap.delayedCall(defaultWordHoldSeconds, animateToNextWord)
     }, headerBrandRef)
 
     return () => {
