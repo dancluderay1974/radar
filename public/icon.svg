@@ -1,6 +1,6 @@
 <!--
   Stage 1: Define a scalable favicon that closely matches the provided reference.
-  Why: Next.js App Router automatically serves app/icon.svg as the tab icon.
+  Why: The icon is now served as a static asset from public/icon.svg, which avoids Cloudflare Pages edge-runtime route checks on app metadata routes.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Code favicon">
   <!-- Stage 2: Draw the dark rounded-square tile background. -->
