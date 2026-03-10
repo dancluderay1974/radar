@@ -2,10 +2,14 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { listUserRepos } from "@/lib/github/client"
 
-export const runtime = "nodejs"
+/**
+ * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
+ * Why: `@cloudflare/next-on-pages` requires non-static API routes to declare edge runtime.
+ */
+export const runtime = "edge"
 
 /**
- * Step 0: Return authenticated user's repositories for the selector UI.
+ * Step 1: Return authenticated user's repositories for the selector UI.
  */
 export async function GET() {
   const session = await auth()

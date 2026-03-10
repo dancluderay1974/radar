@@ -2,10 +2,13 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { sessionStore } from "@/lib/session/store"
 
-export const runtime = "nodejs"
+/**
+ * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
+ */
+export const runtime = "edge"
 
 /**
- * Step 0: Poll preview URL to support automatic iframe refresh in the client.
+ * Step 1: Poll preview URL to support automatic iframe refresh in the client.
  */
 export async function GET(
   _request: Request,
