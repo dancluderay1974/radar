@@ -128,7 +128,8 @@ function LoginPageContent() {
    *
    * Stage B (callback resolution):
    * - Prefer an explicit redirect query param when provided.
-   * - Otherwise default to the current origin so users return to the environment they started from.
+   * - Otherwise default to the internal dashboard route so successful login lands
+   *   inside the authenticated product experience instead of the public marketing page.
    *
    * Stage C (auth kickoff):
    * - On production host: use NextAuth client signIn("github", { callbackUrl }) for the direct provider flow.
@@ -140,7 +141,12 @@ function LoginPageContent() {
 
     const currentOrigin = typeof window !== "undefined" ? window.location.origin : ""
     const isProductionAuthHost = currentOrigin === PRODUCTION_AUTH_ORIGIN
-    const callbackUrl = redirectUrl || currentOrigin
+    /**
+     * Stage B.1: Build the post-login destination.
+     * Why: users signing in from the generic login page should continue into the
+     * internal app shell by default, while still allowing explicit redirect overrides.
+     */
+    const callbackUrl = redirectUrl || `${currentOrigin}/dashboard`
 
     if (!isProductionAuthHost) {
       const params = new URLSearchParams({ callbackUrl })
