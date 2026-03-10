@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Code2, Github, Loader2 } from "lucide-react"
 
-const MAIN_DOMAIN = "https://e-yar.com"
+/**
+ * Step 0: Centralize the production auth server origin.
+ *
+ * Why:
+ * - GitHub OAuth only allows the fixed callback URL configured on production.
+ * - Preview/dev hosts must therefore begin authentication from the production auth server.
+ */
+const PRODUCTION_AUTH_ORIGIN = "https://e-yar.com"
 
 /**
  * Step 1: Render the shared login shell so the page keeps a stable layout
@@ -114,21 +121,33 @@ function LoginPageContent() {
   const redirectUrl = searchParams?.get("redirect")
 
   /**
-   * Step 3: Normalize auth redirect behavior between custom domains and the main domain.
+   * Step 3: Start GitHub auth with a cross-environment-safe flow.
+   *
+   * Stage A (host inspection):
+   * - Detect whether this page is running on the production auth host.
+   *
+   * Stage B (callback resolution):
+   * - Prefer an explicit redirect query param when provided.
+   * - Otherwise default to the current origin so users return to the environment they started from.
+   *
+   * Stage C (auth kickoff):
+   * - On production host: use NextAuth client signIn("github", { callbackUrl }) for the direct provider flow.
+   * - On any non-production host: hard-redirect to the production auth server's signin endpoint,
+   *   passing callbackUrl so NextAuth routes back to the originating environment after login.
    */
   const handleGitHubSignIn = async () => {
     setIsLoading(true)
 
-    const currentHost = typeof window !== "undefined" ? window.location.origin : ""
-    const isMainDomain = currentHost.includes("e-yar.com")
+    const currentOrigin = typeof window !== "undefined" ? window.location.origin : ""
+    const isProductionAuthHost = currentOrigin === PRODUCTION_AUTH_ORIGIN
+    const callbackUrl = redirectUrl || currentOrigin
 
-    if (!isMainDomain && !redirectUrl) {
-      const returnUrl = encodeURIComponent(currentHost + "/dashboard")
-      window.location.href = `${MAIN_DOMAIN}/login?redirect=${returnUrl}`
+    if (!isProductionAuthHost) {
+      const params = new URLSearchParams({ callbackUrl })
+      window.location.assign(`${PRODUCTION_AUTH_ORIGIN}/api/auth/signin?${params.toString()}`)
       return
     }
 
-    const callbackUrl = redirectUrl || "/dashboard"
     await signIn("github", { callbackUrl })
   }
 
