@@ -1,76 +1,68 @@
-# e-yar - AI App Builder
+# AI Repository Coding Workspace
 
-A professional AI-powered application builder for warehouse management systems. Built with Next.js, NextAuth.js, and Tailwind CSS.
+Minimal production-ready Next.js system for authenticated GitHub users to launch isolated AI coding sessions.
 
-## Features
+## What this project does
 
-- Professional landing page with login
-- NextAuth.js authentication (demo: dan/dan)
-- Protected dashboard workspace
-- Admin panel for user management
-- GitHub integration (coming soon)
-- AI code generation (coming soon)
+1. Authenticates users with GitHub OAuth (already configured in `lib/auth.ts`).
+2. Lets users choose one of their repositories.
+3. Spins up a dedicated E2B sandbox per session.
+4. Clones the selected repository, installs dependencies, and runs `npm run dev`.
+5. Exposes a live preview URL in an iframe.
+6. Accepts natural-language prompts in chat and routes them through an AI agent.
+7. Gives the agent file + shell tools and supports commit/push to a new branch.
 
-## Getting Started
+## Architecture overview
+
+### Frontend (App Router + React + Tailwind)
+
+- `app/dashboard/page.tsx`: route entry point.
+- `components/workspace/workspace-shell.tsx`: orchestration shell.
+- `components/workspace/repo-selector.tsx`: GitHub repo selector + session bootstrap.
+- `components/workspace/chat-panel.tsx`: chat interface.
+- `components/workspace/preview-frame.tsx`: live preview iframe + polling refresh.
+
+### Backend (Next.js API routes)
+
+- `app/api/github/repos/route.ts`: list authenticated user repositories.
+- `app/api/sessions/route.ts`: create session + provision sandbox + clone/install/dev server.
+- `app/api/sessions/[sessionId]/messages/route.ts`: run AI orchestration for one user prompt.
+- `app/api/sessions/[sessionId]/preview/route.ts`: poll current preview URL.
+- `app/api/sessions/[sessionId]/commit/route.ts`: commit and push changes.
+
+### Core libraries
+
+- `lib/sandbox/manager.ts`: E2B lifecycle manager + idle cleanup.
+- `lib/session/store.ts`: in-memory multi-session store.
+- `lib/github/client.ts`: GitHub REST wrappers.
+- `lib/agent/tools.ts`: tool implementations (`read_file`, `write_file`, `list_files`, `run_command`, `commit_changes`).
+- `lib/agent/orchestrator.ts`: agent loop using OpenAI Responses-style function calling.
+
+## Environment variables
+
+```bash
+# Auth
+GITHUB_ID=...
+GITHUB_SECRET=...
+AUTH_SECRET=...
+
+# AI + sandbox
+OPENAI_API_KEY=...
+E2B_API_KEY=...
+```
+
+## Run locally
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open `http://localhost:3000/dashboard` after login.
 
-### Login Credentials
+## Notes on session isolation and cleanup
 
-- Username: `dan`
-- Password: `dan`
-- Role: admin
-
-## Project Structure
-
-```
-/app              - Next.js App Router pages and routes
-/components       - React components (UI, admin, dashboard, etc.)
-/lib              - Utility functions and configuration (auth, users)
-/types            - TypeScript type definitions
-/public           - Static assets
-```
-
-## Tech Stack
-
-- **Framework**: Next.js 15
-- **Auth**: NextAuth.js v4
-- **Database**: In-memory (replace with real DB)
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **Language**: TypeScript
-
-## Development
-
-### Environment Variables
-
-The following env vars are configured in `.env.local`:
-
-```
-NEXTAUTH_SECRET=dev-secret-key-change-in-production
-NEXTAUTH_URL=http://localhost:3000
-```
-
-### Authentication Flow
-
-1. User visits landing page or clicks login
-2. Enters credentials (dan/dan for demo)
-3. NextAuth validates against in-memory user store
-4. Session created, user redirected to dashboard
-5. Admin users can access `/dashboard/admin` for user management
-
-## Next Steps
-
-1. Connect real GitHub API for repository management
-2. Implement AI code generation with OpenAI/Claude
-3. Add file system integration for pulled repositories
-4. Implement real database persistence
-5. Add warehouse management system-specific features
-
-## Build Trigger Notes
-
-- 2026-03-08: Added a no-op documentation update to intentionally trigger a fresh CI/CD build.
+- Every new workspace session creates a separate sandbox.
+- Sessions are tracked independently in memory.
+- Idle sandboxes are reaped by `reapIdleSandboxes()` on API activity.
+- This is intentionally simple and can be upgraded to persistent storage/queues later.
