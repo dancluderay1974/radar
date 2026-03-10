@@ -3,10 +3,15 @@ import GitHub from "next-auth/providers/github"
 
 /**
  * Step 1: Read provider env vars once at module load so auth configuration is deterministic.
- * This prevents request-time drift and makes it clear when deployment env vars are missing.
+ *
+ * Why multiple names are supported:
+ * - Auth.js v5 conventions commonly use `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`.
+ * - Existing infrastructure in this project historically used `GITHUB_ID` and `GITHUB_SECRET`.
+ * - Supporting both removes deployment fragility when one environment was provisioned
+ *   with the old names and another with the new names.
  */
-const githubClientId = process.env.GITHUB_ID
-const githubClientSecret = process.env.GITHUB_SECRET
+const githubClientId = process.env.GITHUB_ID ?? process.env.AUTH_GITHUB_ID
+const githubClientSecret = process.env.GITHUB_SECRET ?? process.env.AUTH_GITHUB_SECRET
 
 /**
  * Step 2: Build the provider list defensively.
@@ -34,7 +39,7 @@ if (githubClientId && githubClientSecret) {
   )
 } else {
   console.warn(
-    "[auth] GitHub OAuth credentials are missing. Set GITHUB_ID and GITHUB_SECRET to enable GitHub sign-in."
+    "[auth] GitHub OAuth credentials are missing. Set either GITHUB_ID/GITHUB_SECRET or AUTH_GITHUB_ID/AUTH_GITHUB_SECRET to enable GitHub sign-in."
   )
 }
 
