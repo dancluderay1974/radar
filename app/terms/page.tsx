@@ -1,4 +1,21 @@
+import type { Metadata } from "next"
 import Link from "next/link"
+
+/**
+ * Stage 0: Define explicit page metadata for legal route discoverability.
+ *
+ * Why this exists:
+ * - Adds focused legal-page metadata for better SERP clarity.
+ * - Ensures canonical URL consistency with global SEO configuration.
+ */
+export const metadata: Metadata = {
+  title: "Terms of Service | e-yar",
+  description: "Review the terms governing access and usage of the e-yar platform.",
+  alternates: {
+    canonical: "/terms",
+  },
+}
+
 
 /**
  * Stage 1: Define a minimal Terms page for the login footer links.
