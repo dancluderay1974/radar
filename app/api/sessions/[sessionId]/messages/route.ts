@@ -1,14 +1,24 @@
-import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { runAgentInstruction } from "@/lib/agent/orchestrator"
 import { ensurePreviewUrl, reapIdleSandboxes } from "@/lib/sandbox/manager"
 import { sessionStore } from "@/lib/session/store"
 
-export const runtime = "nodejs"
+/**
+ * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
+ */
+export const runtime = "edge"
 
 /**
- * Step 0: Receive one chat prompt and run agent orchestration against the session.
+ * Step 1: Create runtime-safe UUID values.
+ * Why: `globalThis.crypto.randomUUID()` works in both Edge runtimes and modern Node.
+ */
+function createRuntimeSafeId() {
+  return globalThis.crypto.randomUUID()
+}
+
+/**
+ * Step 2: Receive one chat prompt and run agent orchestration against the session.
  */
 export async function POST(
   request: NextRequest,
@@ -31,13 +41,13 @@ export async function POST(
   const body = await request.json()
   const prompt = body.prompt as string
 
-  const userMessage = { id: randomUUID(), role: "user" as const, content: prompt, createdAt: new Date().toISOString() }
+  const userMessage = { id: createRuntimeSafeId(), role: "user" as const, content: prompt, createdAt: new Date().toISOString() }
   record.messages.push(userMessage)
 
   const result = await runAgentInstruction(record, prompt)
 
   const assistantMessage = {
-    id: randomUUID(),
+    id: createRuntimeSafeId(),
     role: "assistant" as const,
     content: result.summary,
     createdAt: new Date().toISOString(),

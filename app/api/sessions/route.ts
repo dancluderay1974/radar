@@ -1,13 +1,24 @@
-import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { createSandboxForSession, ensurePreviewUrl, reapIdleSandboxes, runSandboxCommand } from "@/lib/sandbox/manager"
 import { sessionStore } from "@/lib/session/store"
 
-export const runtime = "nodejs"
+/**
+ * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
+ * Why: this dynamic API route is validated by the Cloudflare Next adapter.
+ */
+export const runtime = "edge"
 
 /**
- * Step 0: Create a new coding session tied to one selected GitHub repository.
+ * Step 1: Create runtime-safe UUID values.
+ * Why: `globalThis.crypto.randomUUID()` works in both Edge runtimes and modern Node.
+ */
+function createRuntimeSafeId() {
+  return globalThis.crypto.randomUUID()
+}
+
+/**
+ * Step 2: Create a new coding session tied to one selected GitHub repository.
  *
  * Lifecycle stages executed here:
  * 1) Create sandbox.
@@ -48,7 +59,7 @@ export async function POST(request: NextRequest) {
   const previewUrl = await ensurePreviewUrl(sandbox.sandboxId, 3000)
 
   const record = sessionStore.create({
-    id: randomUUID(),
+    id: createRuntimeSafeId(),
     userId: session.user.id,
     owner,
     repo,

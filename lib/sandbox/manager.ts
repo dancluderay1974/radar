@@ -1,5 +1,3 @@
-import { randomUUID } from "crypto"
-
 /**
  * E2B sandbox manager
  * -------------------
@@ -29,6 +27,16 @@ declare global {
 
 const registry = globalThis.__sandboxRegistry ?? new Map<string, SandboxRecord>()
 globalThis.__sandboxRegistry = registry
+
+/**
+ * Stage 0: Runtime-safe UUID creation.
+ * Why: This module is imported by route handlers that run on Cloudflare's Edge runtime,
+ * where the Node `crypto` module import is unavailable. `globalThis.crypto.randomUUID`
+ * works in both modern Node and Edge/Web Worker environments.
+ */
+function createRuntimeSafeId() {
+  return globalThis.crypto.randomUUID()
+}
 
 function getE2BKey() {
   const key = process.env.E2B_API_KEY
@@ -66,7 +74,7 @@ export async function createSandboxForSession(): Promise<SandboxRecord> {
   })
 
   const record: SandboxRecord = {
-    id: randomUUID(),
+    id: createRuntimeSafeId(),
     sandboxId: payload.sandboxId,
     cwd: "/home/user",
     previewUrl: null,

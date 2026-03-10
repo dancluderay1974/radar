@@ -3,10 +3,13 @@ import { auth } from "@/lib/auth"
 import { createAgentTools } from "@/lib/agent/tools"
 import { sessionStore } from "@/lib/session/store"
 
-export const runtime = "nodejs"
+/**
+ * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
+ */
+export const runtime = "edge"
 
 /**
- * Step 0: Manual "commit and push" endpoint for explicit user control.
+ * Step 1: Manual "commit and push" endpoint for explicit user control.
  */
 export async function POST(
   request: NextRequest,
