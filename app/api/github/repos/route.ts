@@ -19,6 +19,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const repos = await listUserRepos(token)
-  return NextResponse.json({ repos })
+  try {
+    const repos = await listUserRepos(token)
+    return NextResponse.json({ repos })
+  } catch (error) {
+    /**
+     * Step 2: Normalize upstream GitHub failures into a stable API response.
+     *
+     * Why this exists:
+     * - The dashboard needs a clear, non-500 message when GitHub rejects a token.
+     * - A consistent response keeps the frontend error UI predictable.
+     */
+    const message = error instanceof Error ? error.message : "Unable to load repositories"
+    return NextResponse.json({ error: message }, { status: 502 })
+  }
 }
