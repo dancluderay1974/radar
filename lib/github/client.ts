@@ -32,6 +32,15 @@ async function githubRequest<T>(
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
+      /**
+       * Stage 1a: Always send a User-Agent header.
+       *
+       * Why this is required:
+       * - GitHub REST APIs can reject requests that do not include User-Agent.
+       * - Edge runtimes do not always set a predictable default User-Agent.
+       * - A stable app identifier avoids environment-specific repo-loading failures.
+       */
+      "User-Agent": "e-yar-dashboard",
       "X-GitHub-Api-Version": "2022-11-28",
       ...(init?.headers ?? {}),
     },
@@ -50,5 +59,47 @@ async function githubRequest<T>(
  * Stage 2: repo picker data source.
  */
 export async function listUserRepos(token: string): Promise<GithubRepo[]> {
-  return githubRequest<GithubRepo[]>(token, "/user/repos?per_page=100&sort=updated")
+  /**
+   * Stage 2a: Build a deterministic query that includes all repository affiliations.
+   *
+   * Why this query exists:
+   * - `affiliation` makes the request explicit about owner/collaborator/org visibility.
+   * - `visibility=all` avoids accidentally filtering to only one visibility bucket.
+   * - `sort=updated` keeps most relevant repos near the top for faster selection.
+   */
+  const query = new URLSearchParams({
+    per_page: "100",
+    sort: "updated",
+    visibility: "all",
+    affiliation: "owner,collaborator,organization_member",
+  })
+
+  /**
+   * Stage 2b: Iterate through pagination so large accounts still get a complete list.
+   */
+  const repos: GithubRepo[] = []
+  let page = 1
+
+  while (true) {
+    const pageQuery = new URLSearchParams(query)
+    pageQuery.set("page", String(page))
+
+    const pageRepos = await githubRequest<GithubRepo[]>(token, `/user/repos?${pageQuery.toString()}`)
+    repos.push(...pageRepos)
+
+    /**
+     * Stage 2c: Stop when GitHub returns a partial/empty page.
+     *
+     * Why this is safe:
+     * - GitHub returns at most `per_page` items.
+     * - Any page smaller than `per_page` indicates the final page.
+     */
+    if (pageRepos.length < 100) {
+      break
+    }
+
+    page += 1
+  }
+
+  return repos
 }
