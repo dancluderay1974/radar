@@ -9,19 +9,54 @@ import { GithubApiError, listUserRepos } from "@/lib/github/client"
 export const runtime = "edge"
 
 /**
- * Step 0.1: Centralize error classification for repository loading failures.
+ * Stage 0.1: Enumerate the backend processing stages used by diagnostics.
+ *
+ * Why this list exists:
+ * - A stable stage string helps determine whether failures occur before auth,
+ *   during token extraction, or while calling GitHub.
+ * - Stage markers are safe to expose to the UI and do not leak secrets.
+ */
+type RepoFetchStage =
+  | "request_received"
+  | "auth_session_lookup"
+  | "token_validation"
+  | "github_repo_fetch"
+  | "response_success"
+
+/**
+ * Stage 0.2: Normalized error shape returned by the classifier.
+ *
+ * Why this interface exists:
+ * - Route-level catch blocks need consistent status, user message, and machine-friendly code.
+ * - A dedicated code allows the frontend to show better support diagnostics.
+ */
+interface ClassifiedRepoError {
+  status: number
+  clientMessage: string
+  logMessage: string
+  code:
+    | "github_auth"
+    | "github_scope"
+    | "github_rate_limit"
+    | "github_upstream"
+    | "session_invalid"
+    | "transport_failure"
+    | "unknown_failure"
+}
+
+/**
+ * Stage 1: Centralize repository error classification.
  *
  * Why this helper exists:
- * - The route can fail in multiple layers (session/auth, GitHub API, edge networking).
- * - Returning a blanket 502 for every failure hides actionable re-auth paths from users.
- * - A single classifier keeps status/message mapping deterministic and easy to extend.
+ * - The repo selector previously received mostly generic 502 responses with little context.
+ * - Classifying once keeps client error mapping deterministic and easier to debug.
  */
-function classifyRepoFetchError(error: unknown): { status: number; clientMessage: string; message: string } {
+function classifyRepoFetchError(error: unknown): ClassifiedRepoError {
   const message = error instanceof Error ? error.message : "Unable to load repositories"
   const lowerMessage = message.toLowerCase()
 
   /**
-   * Step 0.1a: Handle explicit GitHub upstream failures first.
+   * Stage 1.1: Classify explicit GitHub REST API failures first.
    */
   if (error instanceof GithubApiError) {
     const upstreamBody = error.responseBody.toLowerCase()
@@ -35,130 +70,179 @@ function classifyRepoFetchError(error: unknown): { status: number; clientMessage
         status: 401,
         clientMessage:
           "GitHub authorization is missing required repository scope. Please reconnect GitHub and try again.",
-        message,
+        logMessage: message,
+        code: "github_scope",
       }
     }
 
     if (isAuthFailure && !isRateLimitFailure) {
       return {
         status: 401,
-        clientMessage:
-          "GitHub authorization is missing or expired. Please reconnect GitHub and try again.",
-        message,
+        clientMessage: "GitHub authorization is missing or expired. Please reconnect GitHub and try again.",
+        logMessage: message,
+        code: "github_auth",
       }
     }
 
-    if (isRateLimitFailure || error.status === 429 || error.status >= 500) {
+    if (isRateLimitFailure || error.status === 429) {
+      return {
+        status: 502,
+        clientMessage: "GitHub is rate-limiting requests right now. Please try again shortly.",
+        logMessage: message,
+        code: "github_rate_limit",
+      }
+    }
+
+    if (error.status >= 500) {
       return {
         status: 502,
         clientMessage: "Repository service is temporarily unavailable. Please try again shortly.",
-        message,
+        logMessage: message,
+        code: "github_upstream",
       }
     }
   }
 
   /**
-   * Step 0.1b: Detect local auth/session decoding failures that should prompt re-auth.
+   * Stage 1.2: Classify session/JWT/secret related failures to trigger re-auth guidance.
    */
   const isSessionFailure =
     lowerMessage.includes("auth") ||
     lowerMessage.includes("session") ||
     lowerMessage.includes("jwt") ||
     lowerMessage.includes("secret") ||
-    lowerMessage.includes("decryption")
+    lowerMessage.includes("decryption") ||
+    lowerMessage.includes("cookie")
 
   if (isSessionFailure) {
     return {
       status: 401,
-      clientMessage: "Your session has expired. Please sign in again and retry.",
-      message,
+      clientMessage: "Your session has expired or is invalid. Please sign in again and retry.",
+      logMessage: message,
+      code: "session_invalid",
     }
   }
 
   /**
-   * Step 0.1c: Treat transport failures as upstream availability issues.
+   * Stage 1.3: Classify low-level networking/transport failures.
    */
   const isTransportFailure =
     lowerMessage.includes("fetch") ||
     lowerMessage.includes("network") ||
     lowerMessage.includes("timed out") ||
-    lowerMessage.includes("econnreset")
+    lowerMessage.includes("econnreset") ||
+    lowerMessage.includes("dns")
 
   if (isTransportFailure) {
     return {
       status: 502,
       clientMessage: "Unable to reach GitHub right now. Please try again shortly.",
-      message,
+      logMessage: message,
+      code: "transport_failure",
     }
   }
 
   /**
-   * Step 0.1d: Fallback to generic upstream failure response.
+   * Stage 1.4: Fallback classification for uncategorized failures.
    */
   return {
     status: 502,
     clientMessage: "Repository service is temporarily unavailable. Please try again shortly.",
-    message,
+    logMessage: message,
+    code: "unknown_failure",
   }
 }
 
 /**
- * Step 1: Return authenticated user's repositories for the selector UI.
+ * Stage 2: Return authenticated user's repositories for the selector UI.
  */
 export async function GET() {
   /**
-   * Step 1a (Server Trace): Mark start of repository API handling.
+   * Stage 2.0: Create deterministic trace identifiers for cross-layer diagnostics.
    *
-   * Why this trace exists:
-   * - Confirms the dashboard request reached the backend route.
-   * - Provides a stable first log line for debugging selector-loading issues.
+   * Why this exists:
+   * - Browser-only logs cannot reveal where backend execution stopped.
+   * - A request id + stage lets support correlate client failures to server logs quickly.
    */
-  console.log("[API /api/github/repos][Step 1a] Incoming repository list request")
+  const requestId = crypto.randomUUID()
+  let currentStage: RepoFetchStage = "request_received"
+
+  console.log("[API /api/github/repos][Stage 2.0] Incoming repository list request", {
+    requestId,
+    currentStage,
+  })
 
   try {
     /**
-     * Step 1b: Resolve authenticated session inside the guarded block.
-     *
-     * Why this placement exists:
-     * - Some auth/runtime misconfigurations throw before we can inspect a token.
-     * - Keeping this inside `try` guarantees the route still returns JSON on failure,
-     *   preventing the client from receiving HTML error bodies that break JSON parsing.
+     * Stage 2.1: Resolve auth session in guarded context.
      */
+    currentStage = "auth_session_lookup"
     const session = await auth()
+
+    /**
+     * Stage 2.2: Validate token presence before contacting GitHub.
+     */
+    currentStage = "token_validation"
     const token = session?.user?.accessToken
 
     if (!token) {
-      /**
-       * Step 1c (Server Trace): Explain why the request cannot proceed.
-       */
-      console.warn("[API /api/github/repos][Step 1c] Missing access token; returning 401")
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      console.warn("[API /api/github/repos][Stage 2.2] Missing access token; returning 401", {
+        requestId,
+        currentStage,
+      })
+      return NextResponse.json(
+        {
+          error: "GitHub authorization is missing. Please sign in with GitHub again.",
+          diagnostic: {
+            code: "session_invalid",
+            requestId,
+            stage: currentStage,
+          },
+        },
+        { status: 401 }
+      )
     }
 
-    const repos = await listUserRepos(token)
     /**
-     * Step 1d (Server Trace): Capture successful repository load counts.
+     * Stage 2.3: Fetch repositories from GitHub API using the OAuth token.
      */
-    console.log("[API /api/github/repos][Step 1d] Repository list resolved", {
+    currentStage = "github_repo_fetch"
+    const repos = await listUserRepos(token)
+
+    currentStage = "response_success"
+    console.log("[API /api/github/repos][Stage 2.4] Repository list resolved", {
+      requestId,
+      currentStage,
       repoCount: repos.length,
     })
-    return NextResponse.json({ repos })
+
+    return NextResponse.json({ repos, diagnostic: { requestId, stage: currentStage } })
   } catch (error) {
     /**
-     * Step 2: Normalize upstream GitHub failures into a stable API response.
-     *
-     * Why this exists:
-     * - The dashboard needs a clear, non-500 message when GitHub rejects a token.
-     * - A consistent response keeps the frontend error UI predictable.
+     * Stage 3: Normalize failures and return machine-readable diagnostics.
      */
-    const { message, status, clientMessage } = classifyRepoFetchError(error)
-    /**
-     * Step 1e (Server Trace): Preserve upstream failure details for triage.
-     */
-    console.error("[API /api/github/repos][Step 1e] Repository loading failed", {
-      message,
-      status,
+    const classified = classifyRepoFetchError(error)
+
+    console.error("[API /api/github/repos][Stage 3.0] Repository loading failed", {
+      requestId,
+      currentStage,
+      code: classified.code,
+      status: classified.status,
+      message: classified.logMessage,
+      githubStatus: error instanceof GithubApiError ? error.status : null,
+      githubPath: error instanceof GithubApiError ? error.path : null,
     })
-    return NextResponse.json({ error: clientMessage }, { status })
+
+    return NextResponse.json(
+      {
+        error: classified.clientMessage,
+        diagnostic: {
+          code: classified.code,
+          requestId,
+          stage: currentStage,
+        },
+      },
+      { status: classified.status }
+    )
   }
 }
