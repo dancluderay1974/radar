@@ -27,6 +27,15 @@ async function githubRequest<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
+  /**
+   * Stage 1b (Server Trace): Report outbound GitHub request metadata.
+   *
+   * Why this trace exists:
+   * - Confirms the exact endpoint path being queried.
+   * - Helps identify whether pagination and filtering params are applied as expected.
+   */
+  console.log("[GitHubClient][Stage 1b] Requesting GitHub endpoint", { path })
+
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
@@ -49,8 +58,18 @@ async function githubRequest<T>(
 
   if (!response.ok) {
     const errorBody = await response.text()
+    console.error("[GitHubClient][Stage 1c] GitHub endpoint failed", {
+      path,
+      status: response.status,
+      errorBody,
+    })
     throw new Error(`GitHub API error (${response.status}): ${errorBody}`)
   }
+
+  console.log("[GitHubClient][Stage 1d] GitHub endpoint succeeded", {
+    path,
+    status: response.status,
+  })
 
   return (await response.json()) as T
 }
@@ -81,11 +100,20 @@ export async function listUserRepos(token: string): Promise<GithubRepo[]> {
   let page = 1
 
   while (true) {
+    /**
+     * Stage 2c (Server Trace): Track each pagination pass for repo loading.
+     */
+    console.log("[GitHubClient][Stage 2c] Loading repository page", { page })
     const pageQuery = new URLSearchParams(query)
     pageQuery.set("page", String(page))
 
     const pageRepos = await githubRequest<GithubRepo[]>(token, `/user/repos?${pageQuery.toString()}`)
     repos.push(...pageRepos)
+    console.log("[GitHubClient][Stage 2d] Received repository page", {
+      page,
+      pageCount: pageRepos.length,
+      runningTotal: repos.length,
+    })
 
     /**
      * Stage 2c: Stop when GitHub returns a partial/empty page.
@@ -100,6 +128,14 @@ export async function listUserRepos(token: string): Promise<GithubRepo[]> {
 
     page += 1
   }
+
+  /**
+   * Stage 2e (Server Trace): Emit final aggregate count returned to API layer.
+   */
+  console.log("[GitHubClient][Stage 2e] Completed repository pagination", {
+    totalRepos: repos.length,
+    totalPages: page,
+  })
 
   return repos
 }
