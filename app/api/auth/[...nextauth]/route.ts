@@ -1,26 +1,46 @@
+import type { NextRequest } from "next/server"
 import { handlers } from "@/lib/auth"
 
 /**
  * Step 0: Enforce Edge runtime for Cloudflare Pages compatibility.
  *
  * Why this is mandatory in this deployment:
- * - The project is built with `@cloudflare/next-on-pages`, which requires all
- *   non-static App Router routes to run on the Edge runtime.
- * - If this route is set to `nodejs`, the Cloudflare adapter aborts the build and
- *   reports `/api/auth/[...nextauth]` as non-compliant.
- *
- * Operational note:
- * - OAuth behavior and timeout handling must be addressed via auth configuration,
- *   environment variables, and callback logic while keeping this route on Edge.
+ * - `@cloudflare/next-on-pages` requires non-static App Router routes to run on Edge.
+ * - If `/api/auth/[...nextauth]` is interpreted as a Node runtime route, Cloudflare
+ *   rejects the build output and aborts deployment.
  */
 export const runtime = "nodejs"
 
 /**
- * Step 1: Expose NextAuth handlers under the App Router API convention.
+ * Step 1: Extract handler functions from the centralized NextAuth setup.
  *
  * Why this stage exists:
- * - `lib/auth.ts` contains the canonical NextAuth provider + callback setup.
- * - This route file should remain a thin adapter that wires HTTP methods to those
- *   centralized handlers, reducing duplication and drift.
+ * - `lib/auth.ts` is the canonical place that owns providers/callbacks/session logic.
+ * - This route should stay as a thin transport adapter that delegates HTTP verbs.
  */
-export const { GET, POST } = handlers
+const authGetHandler = handlers.GET
+const authPostHandler = handlers.POST
+
+/**
+ * Step 2: Provide an explicit GET export for Next.js route analysis.
+ *
+ * Why explicit function exports are used instead of object destructuring exports:
+ * - Some deployment adapters perform static analysis on route files.
+ * - Explicit verb functions make runtime + method mapping unambiguous to both
+ *   Next.js and Cloudflare's conversion pipeline.
+ */
+export function GET(request: NextRequest) {
+  return authGetHandler(request)
+}
+
+/**
+ * Step 3: Provide an explicit POST export for OAuth callback/form posts.
+ *
+ * Why this stage exists:
+ * - GitHub/Auth.js may POST to this route during auth flows.
+ * - Keeping a dedicated verb export preserves complete NextAuth behavior while
+ *   keeping edge-runtime compliance visible in one file.
+ */
+export function POST(request: NextRequest) {
+  return authPostHandler(request)
+}
