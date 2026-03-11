@@ -52,10 +52,31 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
        */
       setLoadingRepos(true)
       setLoadError(null)
+      /**
+       * Stage 1.0 (Client Trace): Confirm the repository fetch cycle has started.
+       *
+       * Why this trace exists:
+       * - The selector can feel "frozen" while loading; this message proves the request was initiated.
+       * - It gives support/devs an anchor log line to follow in the browser console.
+       */
+      console.log("[RepoSelector][Stage 1.0] Starting repository fetch from /api/github/repos")
 
       try {
         const response = await fetch("/api/github/repos")
         const data = await response.json()
+        /**
+         * Stage 1.1 (Client Trace): Capture the raw result status.
+         *
+         * Why this trace exists:
+         * - Confirms whether the API call succeeded, failed auth, or returned an upstream error.
+         * - Includes a quick repo count to verify whether the dropdown should have options.
+         */
+        console.log("[RepoSelector][Stage 1.1] Repository fetch completed", {
+          ok: response.ok,
+          status: response.status,
+          repoCount: Array.isArray(data?.repos) ? data.repos.length : 0,
+          hasError: Boolean(data?.error),
+        })
 
         if (!response.ok) {
           throw new Error(data?.error || "Unable to load repositories")
@@ -63,10 +84,26 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
 
         setRepos(data.repos || [])
       } catch (error) {
+        /**
+         * Stage 1.2 (Client Trace): Record fetch failures with a readable message.
+         *
+         * Why this trace exists:
+         * - Distinguishes networking/auth/API failures from empty successful responses.
+         * - Keeps the exact error text in the console for quick triage.
+         */
+        console.error("[RepoSelector][Stage 1.2] Repository fetch failed", error)
         setLoadError(error instanceof Error ? error.message : "Unable to load repositories")
         setRepos([])
       } finally {
         setLoadingRepos(false)
+        /**
+         * Stage 1.3 (Client Trace): Mark loading lifecycle completion.
+         *
+         * Why this trace exists:
+         * - Verifies that the loading gate was released.
+         * - Helps diagnose cases where controls remain disabled unexpectedly.
+         */
+        console.log("[RepoSelector][Stage 1.3] Repository loading cycle finished")
       }
     }
 
@@ -106,6 +143,21 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         <select
           className="h-10 flex-1 rounded-md border bg-background px-3 text-sm"
           value={selectedRepo}
+          onClick={() => {
+            /**
+             * Stage 2.0 (Client Trace): Log selector interaction state.
+             *
+             * Why this trace exists:
+             * - Confirms clicks are reaching the control.
+             * - Shows whether disabled/loading/error state is preventing option display.
+             */
+            console.log("[RepoSelector][Stage 2.0] Repository selector clicked", {
+              loadingRepos,
+              loadError,
+              repoCount: repos.length,
+              selectedRepo,
+            })
+          }}
           onChange={(event) => setSelectedRepo(event.target.value)}
           disabled={loadingRepos || !!loadError}
         >
