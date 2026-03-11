@@ -63,15 +63,39 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
 
       try {
         const response = await fetch("/api/github/repos")
-        const data = await response.json()
         /**
-         * Stage 1.1 (Client Trace): Capture the raw result status.
+         * Stage 1.1: Parse the API response body defensively.
+         *
+         * Why this parser exists:
+         * - Reverse proxies and platform errors can return HTML for 5xx responses.
+         * - Calling `response.json()` directly would throw a `SyntaxError` that hides the
+         *   real HTTP status and body shape.
+         * - Reading text first lets us extract either JSON or plain text diagnostics.
+         */
+        const rawBody = await response.text()
+        let data: { repos?: RepoItem[]; error?: string } = {}
+
+        if (rawBody) {
+          try {
+            data = JSON.parse(rawBody) as { repos?: RepoItem[]; error?: string }
+          } catch {
+            data = {
+              error:
+                response.status >= 500
+                  ? "Repository service is temporarily unavailable. Please try again shortly."
+                  : "Unexpected response format from repository API.",
+            }
+          }
+        }
+
+        /**
+         * Stage 1.2 (Client Trace): Capture the raw result status.
          *
          * Why this trace exists:
          * - Confirms whether the API call succeeded, failed auth, or returned an upstream error.
          * - Includes a quick repo count to verify whether the dropdown should have options.
          */
-        console.log("[RepoSelector][Stage 1.1] Repository fetch completed", {
+        console.log("[RepoSelector][Stage 1.2] Repository fetch completed", {
           ok: response.ok,
           status: response.status,
           repoCount: Array.isArray(data?.repos) ? data.repos.length : 0,
@@ -79,7 +103,7 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         })
 
         if (!response.ok) {
-          throw new Error(data?.error || "Unable to load repositories")
+          throw new Error(data?.error || `Unable to load repositories (HTTP ${response.status})`)
         }
 
         setRepos(data.repos || [])
@@ -91,7 +115,7 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
          * - Distinguishes networking/auth/API failures from empty successful responses.
          * - Keeps the exact error text in the console for quick triage.
          */
-        console.error("[RepoSelector][Stage 1.2] Repository fetch failed", error)
+        console.error("[RepoSelector][Stage 1.3] Repository fetch failed", error)
         setLoadError(error instanceof Error ? error.message : "Unable to load repositories")
         setRepos([])
       } finally {
@@ -103,7 +127,7 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
          * - Verifies that the loading gate was released.
          * - Helps diagnose cases where controls remain disabled unexpectedly.
          */
-        console.log("[RepoSelector][Stage 1.3] Repository loading cycle finished")
+        console.log("[RepoSelector][Stage 1.4] Repository loading cycle finished")
       }
     }
 
