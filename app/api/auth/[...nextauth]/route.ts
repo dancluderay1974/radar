@@ -9,7 +9,7 @@ import { handlers } from "@/lib/auth"
  * - If `/api/auth/[...nextauth]` is interpreted as a Node runtime route, Cloudflare
  *   rejects the build output and aborts deployment.
  */
-export const runtime = "edge"
+export const runtime = "nodejs"
 
 /**
  * Step 1: Extract handler functions from the centralized NextAuth setup.
