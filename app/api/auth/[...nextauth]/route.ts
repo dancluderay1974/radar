@@ -1,20 +1,26 @@
 import { handlers } from "@/lib/auth"
 
 /**
- * Step 0: Force the Node.js runtime for OAuth callback reliability.
+ * Step 0: Enforce Edge runtime for Cloudflare Pages compatibility.
  *
- * Why this change fixes the observed timeout:
- * - The GitHub OAuth callback performs server-to-server token exchange work.
- * - In this deployment, running the auth handler on Edge has intermittently caused
- *   long callback stalls after users click "Continue" on GitHub.
- * - Pinning to Node.js gives NextAuth its most battle-tested runtime path for OAuth,
- *   reducing callback timeouts and making login/signup handshakes deterministic.
+ * Why this is mandatory in this deployment:
+ * - The project is built with `@cloudflare/next-on-pages`, which requires all
+ *   non-static App Router routes to run on the Edge runtime.
+ * - If this route is set to `nodejs`, the Cloudflare adapter aborts the build and
+ *   reports `/api/auth/[...nextauth]` as non-compliant.
+ *
+ * Operational note:
+ * - OAuth behavior and timeout handling must be addressed via auth configuration,
+ *   environment variables, and callback logic while keeping this route on Edge.
  */
 export const runtime = "nodejs"
 
 /**
  * Step 1: Expose NextAuth handlers under the App Router API convention.
- * Why: The OAuth flow is already configured in `lib/auth.ts`; this file simply wires
- * Next.js route verbs to that centralized auth configuration.
+ *
+ * Why this stage exists:
+ * - `lib/auth.ts` contains the canonical NextAuth provider + callback setup.
+ * - This route file should remain a thin adapter that wires HTTP methods to those
+ *   centralized handlers, reducing duplication and drift.
  */
 export const { GET, POST } = handlers
