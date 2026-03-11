@@ -13,7 +13,7 @@ import { handlers } from "@/lib/auth"
  * - OAuth behavior and timeout handling must be addressed via auth configuration,
  *   environment variables, and callback logic while keeping this route on Edge.
  */
-export const runtime = "edge"
+export const runtime = "nodejs"
 
 /**
  * Step 1: Expose NextAuth handlers under the App Router API convention.
