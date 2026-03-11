@@ -119,6 +119,19 @@ export async function listUserRepos(token: string): Promise<GithubRepo[]> {
   })
 
   /**
+   * Stage 2a.1: Prepare a conservative fallback query for API-compatibility retries.
+   *
+   * Why this exists:
+   * - Some deployments/proxies reject one or more advanced filters used in the primary query.
+   * - A reduced query shape keeps repository loading functional for users even when optional
+   *   filters are not accepted by the upstream API path.
+   */
+  const fallbackQuery = new URLSearchParams({
+    per_page: "100",
+    sort: "updated",
+  })
+
+  /**
    * Stage 2b: Iterate through pagination so large accounts still get a complete list.
    */
   const repos: GithubRepo[] = []
@@ -132,7 +145,38 @@ export async function listUserRepos(token: string): Promise<GithubRepo[]> {
     const pageQuery = new URLSearchParams(query)
     pageQuery.set("page", String(page))
 
-    const pageRepos = await githubRequest<GithubRepo[]>(token, `/user/repos?${pageQuery.toString()}`)
+    let pageRepos: GithubRepo[]
+
+    try {
+      /**
+       * Stage 2c.1: Execute the primary query first so we preserve intended filtering behavior.
+       */
+      pageRepos = await githubRequest<GithubRepo[]>(token, `/user/repos?${pageQuery.toString()}`)
+    } catch (error) {
+      /**
+       * Stage 2c.2: Retry with compatibility query when upstream rejects primary query shape.
+       *
+       * Why this branch exists:
+       * - GitHub-compatible upstreams can respond with 400/422 for certain filter combinations.
+       * - A one-time fallback prevents hard failures that bubble up as 502 in the dashboard.
+       */
+      const isRetryableQueryShapeFailure =
+        error instanceof GithubApiError && (error.status === 400 || error.status === 422)
+
+      if (!isRetryableQueryShapeFailure) {
+        throw error
+      }
+
+      console.warn("[GitHubClient][Stage 2c.2] Primary repo query rejected; retrying with fallback query", {
+        page,
+        status: error.status,
+      })
+
+      const fallbackPageQuery = new URLSearchParams(fallbackQuery)
+      fallbackPageQuery.set("page", String(page))
+      pageRepos = await githubRequest<GithubRepo[]>(token, `/user/repos?${fallbackPageQuery.toString()}`)
+    }
+
     repos.push(...pageRepos)
     console.log("[GitHubClient][Stage 2d] Received repository page", {
       page,
