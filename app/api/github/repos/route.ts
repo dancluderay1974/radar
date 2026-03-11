@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { listUserRepos } from "@/lib/github/client"
+import { GithubApiError, listUserRepos } from "@/lib/github/client"
 
 /**
  * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
@@ -58,12 +58,42 @@ export async function GET() {
      * - A consistent response keeps the frontend error UI predictable.
      */
     const message = error instanceof Error ? error.message : "Unable to load repositories"
+    let status = 502
+    let clientMessage = "Repository service is temporarily unavailable. Please try again shortly."
+
+    /**
+     * Step 2a: Convert known GitHub upstream statuses into actionable client responses.
+     *
+     * Why this mapping exists:
+     * - 401/403 from GitHub usually means the user revoked OAuth permissions or the token expired.
+     * - Returning 401 instead of 502 lets the frontend show a re-auth style message instead of
+     *   a generic outage state.
+     */
+    if (error instanceof GithubApiError) {
+      const upstreamBody = error.responseBody.toLowerCase()
+      const isAuthFailure = error.status === 401 || error.status === 403
+      const isRateLimitFailure =
+        error.status === 403 &&
+        (upstreamBody.includes("rate limit") || upstreamBody.includes("secondary rate limit"))
+
+      if (isAuthFailure && !isRateLimitFailure) {
+        status = 401
+        clientMessage =
+          "GitHub authorization is missing or expired. Please reconnect GitHub and try again."
+      }
+
+      if (isRateLimitFailure || error.status >= 500) {
+        status = 502
+        clientMessage = "Repository service is temporarily unavailable. Please try again shortly."
+      }
+    }
     /**
      * Step 1e (Server Trace): Preserve upstream failure details for triage.
      */
     console.error("[API /api/github/repos][Step 1e] Repository loading failed", {
       message,
+      status,
     })
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json({ error: clientMessage }, { status })
   }
 }
