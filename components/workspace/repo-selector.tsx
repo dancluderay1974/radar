@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 interface RepoItem {
@@ -40,29 +40,35 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
    */
   const githubPermissionsUrl = "https://github.com/settings/connections/applications"
 
-  useEffect(() => {
-    const loadRepos = async () => {
-      /**
-       * Stage 1: Fetch repositories with explicit error handling.
-       *
-       * Why this matters:
-       * - Empty lists and API failures need different user guidance.
-       * - We surface a targeted message so users know whether to reconnect GitHub
-       *   or simply pick from available repositories.
-       */
-      setLoadingRepos(true)
-      setLoadError(null)
-      /**
-       * Stage 1.0 (Client Trace): Confirm the repository fetch cycle has started.
-       *
-       * Why this trace exists:
-       * - The selector can feel "frozen" while loading; this message proves the request was initiated.
-       * - It gives support/devs an anchor log line to follow in the browser console.
-       */
-      console.log("[RepoSelector][Stage 1.0] Starting repository fetch from /api/github/repos")
+  /**
+   * Stage 1: Centralized repository loading action.
+   *
+   * Why this is a named function:
+   * - The same workflow is needed at first render and when the user clicks retry.
+   * - A single implementation keeps logging and error semantics consistent.
+   */
+  const loadRepos = useCallback(async () => {
+    /**
+     * Stage 1: Fetch repositories with explicit error handling.
+     *
+     * Why this matters:
+     * - Empty lists and API failures need different user guidance.
+     * - We surface a targeted message so users know whether to reconnect GitHub
+     *   or simply pick from available repositories.
+     */
+    setLoadingRepos(true)
+    setLoadError(null)
+    /**
+     * Stage 1.0 (Client Trace): Confirm the repository fetch cycle has started.
+     *
+     * Why this trace exists:
+     * - The selector can feel "frozen" while loading; this message proves the request was initiated.
+     * - It gives support/devs an anchor log line to follow in the browser console.
+     */
+    console.log("[RepoSelector][Stage 1.0] Starting repository fetch from /api/github/repos")
 
-      try {
-        const response = await fetch("/api/github/repos")
+    try {
+      const response = await fetch("/api/github/repos", { cache: "no-store" })
         /**
          * Stage 1.1: Parse the API response body defensively.
          *
@@ -107,7 +113,7 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         }
 
         setRepos(data.repos || [])
-      } catch (error) {
+    } catch (error) {
         /**
          * Stage 1.2 (Client Trace): Record fetch failures with a readable message.
          *
@@ -118,8 +124,8 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         console.error("[RepoSelector][Stage 1.3] Repository fetch failed", error)
         setLoadError(error instanceof Error ? error.message : "Unable to load repositories")
         setRepos([])
-      } finally {
-        setLoadingRepos(false)
+    } finally {
+      setLoadingRepos(false)
         /**
          * Stage 1.3 (Client Trace): Mark loading lifecycle completion.
          *
@@ -127,12 +133,13 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
          * - Verifies that the loading gate was released.
          * - Helps diagnose cases where controls remain disabled unexpectedly.
          */
-        console.log("[RepoSelector][Stage 1.4] Repository loading cycle finished")
-      }
+      console.log("[RepoSelector][Stage 1.4] Repository loading cycle finished")
     }
-
-    loadRepos()
   }, [])
+
+  useEffect(() => {
+    void loadRepos()
+  }, [loadRepos])
 
   const handleCreateSession = async () => {
     const repo = repos.find((item) => item.full_name === selectedRepo)
@@ -183,9 +190,15 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
             })
           }}
           onChange={(event) => setSelectedRepo(event.target.value)}
-          disabled={loadingRepos || !!loadError}
+          disabled={loadingRepos}
         >
-          <option value="">Select a repository...</option>
+          <option value="">
+            {loadingRepos
+              ? "Loading repositories..."
+              : loadError
+                ? "Repository load failed. Retry below."
+                : "Select a repository..."}
+          </option>
           {repos.map((repo) => (
             <option key={repo.id} value={repo.full_name}>
               {repo.full_name}
@@ -207,12 +220,20 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
           <p className="mt-1 text-xs opacity-90">
             Open GitHub permissions to review repository access, then reconnect if needed.
           </p>
+          {loadError && (
+            <p className="mt-1 text-xs opacity-90">
+              Diagnostic: {loadError}
+            </p>
+          )}
           <div className="mt-3">
+            <Button type="button" variant="outline" size="sm" onClick={loadRepos} disabled={loadingRepos}>
+              {loadingRepos ? "Retrying..." : "Retry Repository Load"}
+            </Button>
             <a
               href={githubPermissionsUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center rounded-md border border-amber-700/40 px-3 text-xs font-medium hover:bg-amber-500/20"
+              className="ml-2 inline-flex h-8 items-center rounded-md border border-amber-700/40 px-3 text-xs font-medium hover:bg-amber-500/20"
             >
               Configure GitHub Repository Access
             </a>

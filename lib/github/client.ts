@@ -20,6 +20,27 @@ export interface GithubRepo {
 }
 
 /**
+ * Stage 0: Structured GitHub API error model.
+ *
+ * Why this type exists:
+ * - API route handlers need to distinguish auth failures (401/403) from upstream outages (5xx).
+ * - A typed error lets us map user-facing HTTP statuses without brittle string parsing.
+ */
+export class GithubApiError extends Error {
+  status: number
+  path: string
+  responseBody: string
+
+  constructor({ status, path, responseBody }: { status: number; path: string; responseBody: string }) {
+    super(`GitHub API error (${status}) on ${path}`)
+    this.name = "GithubApiError"
+    this.status = status
+    this.path = path
+    this.responseBody = responseBody
+  }
+}
+
+/**
  * Stage 1: shared request helper with consistent auth and error formatting.
  */
 async function githubRequest<T>(
@@ -63,7 +84,11 @@ async function githubRequest<T>(
       status: response.status,
       errorBody,
     })
-    throw new Error(`GitHub API error (${response.status}): ${errorBody}`)
+    throw new GithubApiError({
+      status: response.status,
+      path,
+      responseBody: errorBody,
+    })
   }
 
   console.log("[GitHubClient][Stage 1d] GitHub endpoint succeeded", {
