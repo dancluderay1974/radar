@@ -17,6 +17,20 @@ interface RepoSelectorProps {
 }
 
 /**
+ * Stage 0.1: API diagnostic metadata returned by `/api/github/repos`.
+ *
+ * Why this exists:
+ * - The backend now returns a stable diagnostic object for every success/failure path.
+ * - Surfacing this data in logs/UI helps confirm whether failures occurred pre-auth or during
+ *   upstream GitHub calls.
+ */
+interface RepoApiDiagnostic {
+  code?: string
+  requestId?: string
+  stage?: string
+}
+
+/**
  * RepoSelector
  * ------------
  * Stage 1: Fetch repositories for the authenticated user.
@@ -79,11 +93,11 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
          * - Reading text first lets us extract either JSON or plain text diagnostics.
          */
         const rawBody = await response.text()
-        let data: { repos?: RepoItem[]; error?: string } = {}
+        let data: { repos?: RepoItem[]; error?: string; diagnostic?: RepoApiDiagnostic } = {}
 
         if (rawBody) {
           try {
-            data = JSON.parse(rawBody) as { repos?: RepoItem[]; error?: string }
+            data = JSON.parse(rawBody) as { repos?: RepoItem[]; error?: string; diagnostic?: RepoApiDiagnostic }
           } catch {
             data = {
               error:
@@ -106,10 +120,22 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
           status: response.status,
           repoCount: Array.isArray(data?.repos) ? data.repos.length : 0,
           hasError: Boolean(data?.error),
+          diagnostic: data?.diagnostic ?? null,
         })
 
         if (!response.ok) {
-          throw new Error(data?.error || `Unable to load repositories (HTTP ${response.status})`)
+          /**
+           * Stage 1.2a: Build a support-friendly error message with diagnostic context.
+           *
+           * Why this exists:
+           * - A raw HTTP status alone does not reveal the failing backend stage.
+           * - Request id + stage + code let us cross-reference server logs quickly.
+           */
+          const baseMessage = data?.error || `Unable to load repositories (HTTP ${response.status})`
+          const diagnosticSuffix = data?.diagnostic?.requestId
+            ? ` [requestId=${data.diagnostic.requestId}; stage=${data.diagnostic.stage ?? "unknown"}; code=${data.diagnostic.code ?? "unknown"}]`
+            : ""
+          throw new Error(`${baseMessage}${diagnosticSuffix}`)
         }
 
         setRepos(data.repos || [])
