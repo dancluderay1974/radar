@@ -49,9 +49,37 @@ if (githubClientId && githubClientSecret) {
  */
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
 
+/**
+ * Step 3.1: Provide a deterministic emergency secret fallback in environments
+ * where neither Auth.js secret env var has been configured.
+ *
+ * Why this exists:
+ * - Auth.js can throw during module initialization when `secret` is missing in production mode.
+ * - A throw at import-time causes Cloudflare to return a generic 502 host error before our
+ *   API route can return a structured JSON error payload.
+ * - This fallback keeps auth module initialization alive so API handlers can respond with
+ *   explicit 401 diagnostics (e.g., "sign in again") instead of opaque gateway failures.
+ *
+ * Operational note:
+ * - Deployments should still set AUTH_SECRET (preferred) or NEXTAUTH_SECRET.
+ * - The fallback is intentionally stable per-environment but is not a replacement for a
+ *   managed secret in production infrastructure.
+ */
+const emergencyAuthSecret =
+  authSecret ??
+  process.env.GITHUB_SECRET ??
+  process.env.AUTH_GITHUB_SECRET ??
+  "e-yar-emergency-auth-secret-change-me"
+
+if (!authSecret) {
+  console.warn(
+    "[auth] AUTH_SECRET/NEXTAUTH_SECRET is missing. Using emergency fallback secret; configure a real secret in production."
+  )
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
-  secret: authSecret,
+  secret: emergencyAuthSecret,
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
