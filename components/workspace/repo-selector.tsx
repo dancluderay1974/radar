@@ -48,17 +48,28 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
   const [githubToken, setGithubToken] = useState<string | null>(null)
 
   /**
-   * Stage 0: Capture GitHub token from URL and store in state
+   * Stage 0: Capture GitHub token from URL and store in localStorage
    *
    * Why this exists:
    * - After OAuth callback, the token is passed via URL parameter
-   * - We extract it once on mount and use it for all API calls
+   * - We store it in localStorage so it persists across page refreshes
+   * - We also clean up the URL to remove the token
    */
   useEffect(() => {
-    const token = searchParams.get("github_token")
-    if (token) {
-      setGithubToken(token)
-      console.log("[RepoSelector] GitHub token received from URL")
+    const tokenFromUrl = searchParams.get("github_token")
+    if (tokenFromUrl) {
+      localStorage.setItem("github_token", tokenFromUrl)
+      setGithubToken(tokenFromUrl)
+      console.log("[v0] GitHub token received from URL, storing in localStorage")
+      // Clean up URL by removing the token parameter
+      window.history.replaceState({}, "", "/dashboard")
+    } else {
+      // Try to load from localStorage
+      const storedToken = localStorage.getItem("github_token")
+      if (storedToken) {
+        setGithubToken(storedToken)
+        console.log("[v0] GitHub token loaded from localStorage")
+      }
     }
   }, [searchParams])
 
@@ -175,7 +186,28 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         setRepos([])
     } finally {
       setLoadingRepos(false)
-  }, [loadRepos])
+    }
+  }, [githubToken])
+
+  /**
+   * Stage 1.1: Trigger loadRepos when token becomes available
+   */
+  useEffect(() => {
+    if (githubToken) {
+      console.log("[v0] Token available, loading repos")
+      loadRepos()
+    } else {
+      // Check localStorage on mount
+      const storedToken = localStorage.getItem("github_token")
+      if (storedToken) {
+        setGithubToken(storedToken)
+      } else {
+        // No token available, stop loading
+        setLoadingRepos(false)
+        setLoadError("GitHub token not configured")
+      }
+    }
+  }, [githubToken, loadRepos])
 
   const handleCreateSession = async () => {
     const repo = repos.find((item) => item.full_name === selectedRepo)
