@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
 interface RepoItem {
@@ -39,39 +38,11 @@ interface RepoApiDiagnostic {
  * Stage 3: Create a new coding session bound to that repo.
  */
 export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
-  const searchParams = useSearchParams()
   const [repos, setRepos] = useState<RepoItem[]>([])
   const [selectedRepo, setSelectedRepo] = useState<string>("")
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingRepos, setLoadingRepos] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [githubToken, setGithubToken] = useState<string | null>(null)
-
-  /**
-   * Stage 0: Capture GitHub token from URL and store in localStorage
-   *
-   * Why this exists:
-   * - After OAuth callback, the token is passed via URL parameter
-   * - We store it in localStorage so it persists across page refreshes
-   * - We also clean up the URL to remove the token
-   */
-  useEffect(() => {
-    const tokenFromUrl = searchParams.get("github_token")
-    if (tokenFromUrl) {
-      localStorage.setItem("github_token", tokenFromUrl)
-      setGithubToken(tokenFromUrl)
-      console.log("[v0] GitHub token received from URL, storing in localStorage")
-      // Clean up URL by removing the token parameter
-      window.history.replaceState({}, "", "/dashboard")
-    } else {
-      // Try to load from localStorage
-      const storedToken = localStorage.getItem("github_token")
-      if (storedToken) {
-        setGithubToken(storedToken)
-        console.log("[v0] GitHub token loaded from localStorage")
-      }
-    }
-  }, [searchParams])
 
   /**
    * Stage 0: Define the GitHub permissions-management entrypoint.
@@ -111,12 +82,7 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
     console.log("[RepoSelector][Stage 1.0] Starting repository fetch from /api/github/repos")
 
     try {
-      const response = await fetch("/api/github/repos", { 
-        cache: "no-store",
-        headers: githubToken ? {
-          "Authorization": `Bearer ${githubToken}`
-        } : {}
-      })
+      const response = await fetch("/api/github/repos", { cache: "no-store" })
         /**
          * Stage 1.1: Parse the API response body defensively.
          *
@@ -187,27 +153,14 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
     } finally {
       setLoadingRepos(false)
     }
-  }, [githubToken])
+  }, [])
 
   /**
-   * Stage 1.1: Trigger loadRepos when token becomes available
+   * Stage 1.1: Trigger loadRepos on mount
    */
   useEffect(() => {
-    if (githubToken) {
-      console.log("[v0] Token available, loading repos")
-      loadRepos()
-    } else {
-      // Check localStorage on mount
-      const storedToken = localStorage.getItem("github_token")
-      if (storedToken) {
-        setGithubToken(storedToken)
-      } else {
-        // No token available, stop loading
-        setLoadingRepos(false)
-        setLoadError("GitHub token not configured")
-      }
-    }
-  }, [githubToken, loadRepos])
+    loadRepos()
+  }, [loadRepos])
 
   const handleCreateSession = async () => {
     const repo = repos.find((item) => item.full_name === selectedRepo)
