@@ -78,8 +78,8 @@ function classifyRepoFetchError(error: unknown): ClassifiedRepoError {
    */
   const isGithubApiError = error instanceof Error && error.name === "GithubApiError"
   if (isGithubApiError && "status" in error && "responseBody" in error) {
-    const githubError = error as { status: number; responseBody: string; path: string }
-    const upstreamBody = githubError.responseBody.toLowerCase()
+    const githubError = error as unknown as { status: number; responseBody: string; path?: string }
+    const upstreamBody = String(githubError.responseBody).toLowerCase()
     const isAuthFailure = githubError.status === 401 || githubError.status === 403
     const isRateLimitFailure =
       githubError.status === 403 &&
