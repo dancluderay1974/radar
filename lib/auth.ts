@@ -2,6 +2,26 @@ import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
 
 /**
+ * Step 0: Cloudflare Pages compatibility helper.
+ * 
+ * Why this exists:
+ * - Cloudflare Workers/Pages environment variables may be accessed differently.
+ * - process.env might not be populated at module load time in edge runtime.
+ * - This helper safely reads env vars with fallbacks.
+ */
+function getEnvVar(key: string): string | undefined {
+  try {
+    // Standard Node.js / Next.js way
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key]
+    }
+  } catch {
+    // Ignore errors in edge runtime
+  }
+  return undefined
+}
+
+/**
  * Step 1: Read provider env vars once at module load so auth configuration is deterministic.
  *
  * Why multiple names are supported:
@@ -10,8 +30,8 @@ import GitHub from "next-auth/providers/github"
  * - Supporting both removes deployment fragility when one environment was provisioned
  *   with the old names and another with the new names.
  */
-const githubClientId = process.env.GITHUB_ID ?? process.env.AUTH_GITHUB_ID
-const githubClientSecret = process.env.GITHUB_SECRET ?? process.env.AUTH_GITHUB_SECRET
+const githubClientId = getEnvVar('GITHUB_ID') ?? getEnvVar('AUTH_GITHUB_ID')
+const githubClientSecret = getEnvVar('GITHUB_SECRET') ?? getEnvVar('AUTH_GITHUB_SECRET')
 
 /**
  * Step 2: Build the provider list defensively.
@@ -47,7 +67,7 @@ if (githubClientId && githubClientSecret) {
  * Step 3: Resolve Auth.js secret from both v5 (`AUTH_SECRET`) and legacy (`NEXTAUTH_SECRET`) env names.
  * This improves compatibility across local/dev/prod deployments and prevents production session errors.
  */
-const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+const authSecret = getEnvVar('AUTH_SECRET') ?? getEnvVar('NEXTAUTH_SECRET')
 
 /**
  * Step 3.1: Provide a deterministic emergency secret fallback in environments
@@ -67,8 +87,8 @@ const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
  */
 const emergencyAuthSecret =
   authSecret ??
-  process.env.GITHUB_SECRET ??
-  process.env.AUTH_GITHUB_SECRET ??
+  getEnvVar('GITHUB_SECRET') ??
+  getEnvVar('AUTH_GITHUB_SECRET') ??
   "e-yar-emergency-auth-secret-change-me"
 
 if (!authSecret) {
