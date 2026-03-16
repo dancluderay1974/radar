@@ -1,12 +1,29 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { GithubApiError, listUserRepos } from "@/lib/github/client"
 
 /**
  * Step 0: Enforce the Edge runtime for Cloudflare Pages compatibility.
  * Why: `@cloudflare/next-on-pages` requires non-static API routes to declare edge runtime.
  */
 export const runtime = "edge"
+
+/**
+ * Dynamic imports to catch initialization errors that would otherwise cause 502.
+ */
+let auth: typeof import("@/lib/auth").auth | null = null
+let listUserRepos: typeof import("@/lib/github/client").listUserRepos | null = null
+let GithubApiError: typeof import("@/lib/github/client").GithubApiError | null = null
+
+async function loadDependencies() {
+  if (!auth) {
+    const authModule = await import("@/lib/auth")
+    auth = authModule.auth
+  }
+  if (!listUserRepos || !GithubApiError) {
+    const clientModule = await import("@/lib/github/client")
+    listUserRepos = clientModule.listUserRepos
+    GithubApiError = clientModule.GithubApiError
+  }
+}
 
 /**
  * Stage 0.1: Enumerate the backend processing stages used by diagnostics.
@@ -57,15 +74,18 @@ function classifyRepoFetchError(error: unknown): ClassifiedRepoError {
 
   /**
    * Stage 1.1: Classify explicit GitHub REST API failures first.
+   * Check by error name since GithubApiError is dynamically imported.
    */
-  if (error instanceof GithubApiError) {
-    const upstreamBody = error.responseBody.toLowerCase()
-    const isAuthFailure = error.status === 401 || error.status === 403
+  const isGithubApiError = error instanceof Error && error.name === "GithubApiError"
+  if (isGithubApiError && "status" in error && "responseBody" in error) {
+    const githubError = error as { status: number; responseBody: string; path: string }
+    const upstreamBody = githubError.responseBody.toLowerCase()
+    const isAuthFailure = githubError.status === 401 || githubError.status === 403
     const isRateLimitFailure =
-      error.status === 403 &&
+      githubError.status === 403 &&
       (upstreamBody.includes("rate limit") || upstreamBody.includes("secondary rate limit"))
 
-    if (error.status === 404) {
+    if (githubError.status === 404) {
       return {
         status: 401,
         clientMessage:
@@ -84,7 +104,7 @@ function classifyRepoFetchError(error: unknown): ClassifiedRepoError {
       }
     }
 
-    if (isRateLimitFailure || error.status === 429) {
+    if (isRateLimitFailure || githubError.status === 429) {
       return {
         status: 502,
         clientMessage: "GitHub is rate-limiting requests right now. Please try again shortly.",
@@ -93,7 +113,7 @@ function classifyRepoFetchError(error: unknown): ClassifiedRepoError {
       }
     }
 
-    if (error.status >= 500) {
+    if (githubError.status >= 500) {
       return {
         status: 502,
         clientMessage: "Repository service is temporarily unavailable. Please try again shortly.",
@@ -174,6 +194,37 @@ export async function GET() {
 
   try {
     /**
+     * Stage 2.0.1: Load dependencies dynamically to catch import errors.
+     */
+    try {
+      await loadDependencies()
+    } catch (importError) {
+      console.error("[API /api/github/repos] Failed to load dependencies:", importError)
+      return NextResponse.json(
+        {
+          error: "Server configuration error. Please try again shortly.",
+          diagnostic: {
+            code: "import_failure",
+            requestId,
+            stage: "dependency_load",
+            message: importError instanceof Error ? importError.message : String(importError),
+          },
+        },
+        { status: 500 }
+      )
+    }
+
+    if (!auth || !listUserRepos) {
+      return NextResponse.json(
+        {
+          error: "Server configuration error. Dependencies not loaded.",
+          diagnostic: { code: "missing_deps", requestId, stage: "dependency_check" },
+        },
+        { status: 500 }
+      )
+    }
+
+    /**
      * Stage 2.1: Resolve auth session in guarded context.
      */
     currentStage = "auth_session_lookup"
@@ -230,10 +281,11 @@ export async function GET() {
     /**
      * Stage 3: Normalize failures and return machine-readable diagnostics.
      */
+    const isGithubApiError = error instanceof Error && error.name === "GithubApiError"
     console.log("[v0] Caught error:", {
-      errorType: error?.constructor?.name,
+      errorType: error instanceof Error ? error.constructor?.name : typeof error,
       errorMessage: error instanceof Error ? error.message : String(error),
-      isGithubApiError: error instanceof GithubApiError,
+      isGithubApiError,
       fullError: error,
     })
     
@@ -245,8 +297,8 @@ export async function GET() {
       code: classified.code,
       status: classified.status,
       message: classified.logMessage,
-      githubStatus: error instanceof GithubApiError ? error.status : null,
-      githubPath: error instanceof GithubApiError ? error.path : null,
+      githubStatus: isGithubApiError && "status" in error ? (error as { status: number }).status : null,
+      githubPath: isGithubApiError && "path" in error ? (error as { path: string }).path : null,
     })
 
     return NextResponse.json(
