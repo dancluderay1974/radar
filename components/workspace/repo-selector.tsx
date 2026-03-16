@@ -152,19 +152,14 @@ export function RepoSelector({ onSessionCreated }: RepoSelectorProps) {
         setRepos([])
     } finally {
       setLoadingRepos(false)
-        /**
-         * Stage 1.3 (Client Trace): Mark loading lifecycle completion.
-         *
-         * Why this trace exists:
-         * - Verifies that the loading gate was released.
-         * - Helps diagnose cases where controls remain disabled unexpectedly.
-         */
-      console.log("[RepoSelector][Stage 1.4] Repository loading cycle finished")
     }
   }, [])
 
+  /**
+   * Stage 1.1: Trigger loadRepos on mount
+   */
   useEffect(() => {
-    void loadRepos()
+    loadRepos()
   }, [loadRepos])
 
   const handleCreateSession = async () => {

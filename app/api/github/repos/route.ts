@@ -179,6 +179,15 @@ export async function GET() {
     currentStage = "auth_session_lookup"
     const session = await auth()
 
+    console.log("[v0] Session debug:", {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userName: session?.user?.name,
+      userEmail: session?.user?.email,
+      hasAccessToken: !!session?.user?.accessToken,
+      accessTokenLength: session?.user?.accessToken?.length,
+    })
+
     /**
      * Stage 2.2: Validate token presence before contacting GitHub.
      */
@@ -221,6 +230,13 @@ export async function GET() {
     /**
      * Stage 3: Normalize failures and return machine-readable diagnostics.
      */
+    console.log("[v0] Caught error:", {
+      errorType: error?.constructor?.name,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      isGithubApiError: error instanceof GithubApiError,
+      fullError: error,
+    })
+    
     const classified = classifyRepoFetchError(error)
 
     console.error("[API /api/github/repos][Stage 3.0] Repository loading failed", {
