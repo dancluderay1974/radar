@@ -54,7 +54,7 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
     heroTitle: "Reet Proper AI",
     heroSubtitle: "that knows why you're building.",
     heroDescription:
-      "The Go To Market problem hasn't gone away. Physics of business hasn't changed. Developers drift. e-yar keeps your AI on t'straight and narrow by baking your business purpose into every line of code it writes.",
+      "Go To Market problem's still there. Physics of business hasn't budged. Developers drift and lose t'plot about what matters and what value's really worth in this era of supercharged AI. e-yar keeps your AI on t'straight and narrow by baking your business purpose into every line of code it writes.",
     primaryCta: "Get It Sorted",
     purposeTitle: "Code That Knows Its Job",
     purposeSubtitle: "Development for t'business, not just t'code.",
@@ -124,7 +124,7 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
     heroTitle: "High-Performance AI",
     heroSubtitle: "that understands your business.",
     heroDescription:
-      "The Go To Market problem hasn't been solved. The physics of business hasn't changed. Developers drift. e-yar keeps your AI aligned by embedding your business purpose into every line of code it generates.",
+      "The Go To Market problem hasn't been solved with AI. The physics of business hasn't changed. Developers drift and lose sight of goal and what value means in this era of supercharged AI development. e-yar keeps your AI aligned by embedding your business purpose into every line of code it generates.",
     primaryCta: "Launch Now",
     purposeTitle: "Code That Ships With Intent",
     purposeSubtitle: "A development environment for the business, not just the codebase.",
