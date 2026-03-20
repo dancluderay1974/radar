@@ -1,5 +1,6 @@
 "use client"
 
+// e-yar: Development environment for the business, not just the code.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { gsap } from "gsap"
 import Link from "next/link"
