@@ -10,7 +10,8 @@ type LandingCopy = {
   badge: string
   heroTitle: string
   heroSubtitle: string
-  heroDescription: string
+  heroDescriptionPart1: string
+  heroDescriptionPart2: string
   primaryCta: string
   purposeTitle: string
   purposeSubtitle: string
@@ -53,8 +54,10 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
     badge: "AI Web Development, Yorkshire Style",
     heroTitle: "Reet Proper AI",
     heroSubtitle: "that knows why you're building.",
-    heroDescription:
-      "Go-to-market problem's still sat theer, nowt's shifted. Physics o't business rules ain't budged neither. Devs wander off an' lose t'plot on what actually matters an' what value's worth these days wi' all this turbo-charged AI about.\n\ne-yar keeps yer AI on t'straight an' narrow, by baking yer business purpose reyt into every line o' code it knocks up. Every feature knows why it exists. Every commit connects back to what yer business is actually trying to achieve.",
+    heroDescriptionPart1:
+      "Go-to-market problem's still sat theer, nowt's shifted. Physics o't business rules ain't budged neither. Devs wander off an' lose t'plot on what actually matters an' what value's worth these days wi' all this turbo-charged AI about.",
+    heroDescriptionPart2:
+      "e-yar keeps yer AI on t'straight an' narrow, by baking yer business purpose reyt into every line o' code it knocks up. Every feature knows why it exists. Every commit connects back to what yer business is actually trying to achieve.",
     primaryCta: "Get It Sorted",
     purposeTitle: "Code That Knows Its Job",
     purposeSubtitle: "Development for t'business, not just t'code.",
@@ -123,8 +126,10 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
     badge: "AI Web Development, Silicon Valley Style",
     heroTitle: "High-Performance AI",
     heroSubtitle: "that understands your business.",
-    heroDescription:
-      "The Go To Market problem hasn't been solved with AI. The physics of business hasn't changed. Developers drift and lose sight of goal and what value means in this era of supercharged AI development.\n\ne-yar keeps your AI aligned by embedding your business purpose into every line of code it generates. Every feature understands why it exists. Every commit traces back to the actual business outcome you're trying to achieve.",
+    heroDescriptionPart1:
+      "The Go To Market problem hasn't been solved with AI. The physics of business hasn't changed. Developers drift and lose sight of goal and what value means in this era of supercharged AI development.",
+    heroDescriptionPart2:
+      "e-yar keeps your AI aligned by embedding your business purpose into every line of code it generates. Every feature understands why it exists. Every commit traces back to the actual business outcome you're trying to achieve.",
     primaryCta: "Launch Now",
     purposeTitle: "Code That Ships With Intent",
     purposeSubtitle: "A development environment for the business, not just the codebase.",
@@ -414,8 +419,12 @@ export default function LandingPage() {
               <span className="text-muted-foreground">{activeCopy.heroSubtitle}</span>
             </h1>
 
+            <p className="mx-auto mb-4 max-w-2xl text-pretty text-lg text-muted-foreground">
+              {activeCopy.heroDescriptionPart1}
+            </p>
+
             <p className="mx-auto mb-10 max-w-2xl text-pretty text-lg text-muted-foreground">
-              {activeCopy.heroDescription}
+              {activeCopy.heroDescriptionPart2}
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
