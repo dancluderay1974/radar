@@ -54,12 +54,12 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
     heroTitle: "Reet Proper AI",
     heroSubtitle: "that knows why you're building.",
     heroDescription:
-      "Go To Market problem's still there. Physics of business hasn't budged. Developers drift and lose t'plot about what matters and what value's really worth in this era of supercharged AI. e-yar keeps your AI on t'straight and narrow by baking your business purpose into every line of code it writes.",
+      "Go-to-market problem's still sat theer, nowt's shifted. Physics o't business rules ain't budged neither. Devs wander off an' lose t'plot on what actually matters an' what value's worth these days wi' all this turbo-charged AI about.\n\ne-yar keeps yer AI on t'straight an' narrow, by baking yer business purpose reyt into every line o' code it knocks up.",
     primaryCta: "Get It Sorted",
     purposeTitle: "Code That Knows Its Job",
     purposeSubtitle: "Development for t'business, not just t'code.",
     purposeDescription:
-      "Before any AI writes owt, it reads your rule book. What are we doing this for? How do we make brass? What does t'customer actually need? Every feature, every function, every commit knows why it exists.",
+      "Before any AI knocks up owt, it reads your rule book. What're we doing this for? How do we fetch brass? What does t'customer actually want? Every feature, every function, every commit knows reyt well why it's there an' what it's meant to do.",
     purposePoints: [
       {
         title: "Your Why, Baked In",
