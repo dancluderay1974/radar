@@ -4,14 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { gsap } from "gsap"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Code2, GitBranch, Sparkles, Zap } from "lucide-react"
+import { ArrowRight, Code2, Compass, Focus, GitBranch, Sparkles, Target, Zap } from "lucide-react"
 
 type LandingCopy = {
   badge: string
   heroTitle: string
   heroSubtitle: string
-  heroDescription: string
+  heroDescriptionPart1: string
+  heroDescriptionPart2: string
   primaryCta: string
+  purposeTitle: string
+  purposeSubtitle: string
+  purposeDescription: string
+  purposePoints: Array<{ title: string; description: string }>
   featureTitle: string
   featureDescription: string
   features: Array<{ title: string; description: string }>
@@ -48,10 +53,33 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
   yorkshire: {
     badge: "AI Web Development, Yorkshire Style",
     heroTitle: "Reet Proper AI",
-    heroSubtitle: "for building websites.",
-    heroDescription:
-      "When t'server's sulking and there's trouble at mill, e-yar helps you build, fix, and ship websites without all t'faff. Tell it what you want in plain English, and it gets cracking.",
+    heroSubtitle: "that knows why you're building.",
+    heroDescriptionPart1:
+      "Go-to-market problem's still sat theer, nowt's shifted. Physics o't business rules ain't budged neither. Devs wander off an' lose t'plot on what actually matters an' what value's worth these days wi' all this turbo-charged AI about.",
+    heroDescriptionPart2:
+      "e-yar keeps yer AI on t'straight an' narrow, by baking yer business purpose reyt into every line o' code it knocks up. Every feature knows why it exists. Every commit connects back to what yer business is actually trying to achieve.",
     primaryCta: "Get It Sorted",
+    purposeTitle: "Code That Knows Its Job",
+    purposeSubtitle: "Development for t'business, not just t'code.",
+    purposeDescription:
+      "Before any AI knocks up owt, it reads your rule book. What're we doing this for? How do we fetch brass? What does t'customer actually want? Every feature, every function, every commit knows reyt well why it's there an' what it's meant to do.",
+    purposePoints: [
+      {
+        title: "Your Why, Baked In",
+        description:
+          "Enter your business goals once. AI reads 'em before every task. No more code that's technically grand but misses the point entirely.",
+      },
+      {
+        title: "Developers Drift. This Doesn't.",
+        description:
+          "Left to their own devices, devs wander off track. e-yar keeps everyone building toward t'same goal, sprint after sprint.",
+      },
+      {
+        title: "Git + Business Logic",
+        description:
+          "Pull, push, and ship code that's connected to your repos AND your revenue model. That's summat new.",
+      },
+    ],
     featureTitle: "Everything You Need, Nowt You Don't",
     featureDescription:
       "A reet practical AI toolkit for building websites quickly, cleanly, and without endless config nonsense.",
@@ -97,10 +125,33 @@ const LANDING_COPY: Record<"yorkshire" | "english", LandingCopy> = {
   english: {
     badge: "AI Web Development, Silicon Valley Style",
     heroTitle: "High-Performance AI",
-    heroSubtitle: "for building websites.",
-    heroDescription:
-      "When your server is under pressure and delivery timelines are tight, e-yar helps you build, fix, and ship websites without unnecessary overhead. Share your goals clearly, and it executes fast.",
+    heroSubtitle: "that understands your business.",
+    heroDescriptionPart1:
+      "The Go To Market problem hasn't been solved with AI. The physics of business hasn't changed. Developers drift and lose sight of goal and what value means in this era of supercharged AI development.",
+    heroDescriptionPart2:
+      "e-yar keeps your AI aligned by embedding your business purpose into every line of code it generates. Every feature understands why it exists. Every commit traces back to the actual business outcome you're trying to achieve.",
     primaryCta: "Launch Now",
+    purposeTitle: "Code That Ships With Intent",
+    purposeSubtitle: "A development environment for the business, not just the codebase.",
+    purposeDescription:
+      "Before any AI writes a single line, it reads your playbook. What's the mission? How do you monetize? What does the customer actually need? Every feature, every function, every commit understands why it exists.",
+    purposePoints: [
+      {
+        title: "Your Why, Embedded",
+        description:
+          "Define your business goals once. AI references them before every task. No more technically excellent code that completely misses the strategic point.",
+      },
+      {
+        title: "Developers Drift. This Doesn't.",
+        description:
+          "Left unchecked, engineering teams lose alignment with business outcomes. e-yar maintains focus on the goals that actually matter, sprint after sprint.",
+      },
+      {
+        title: "Git + Business Logic",
+        description:
+          "Pull, push, and ship code that's connected to your repositories AND your revenue model. That's a new paradigm.",
+      },
+    ],
     featureTitle: "Everything You Need, Nothing You Don't",
     featureDescription:
       "A practical AI toolkit for shipping websites quickly, cleanly, and without configuration drag.",
@@ -368,8 +419,12 @@ export default function LandingPage() {
               <span className="text-muted-foreground">{activeCopy.heroSubtitle}</span>
             </h1>
 
+            <p className="mx-auto mb-4 max-w-2xl text-pretty text-lg text-muted-foreground">
+              {activeCopy.heroDescriptionPart1}
+            </p>
+
             <p className="mx-auto mb-10 max-w-2xl text-pretty text-lg text-muted-foreground">
-              {activeCopy.heroDescription}
+              {activeCopy.heroDescriptionPart2}
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -386,8 +441,46 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Business Purpose Section - The Key Differentiator */}
+        <section className="border-t bg-foreground py-24 text-background">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="mb-16 text-center">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-background/20 bg-background/10 px-4 py-1.5 text-sm text-background/80">
+                <Target className="h-4 w-4" />
+                The Missing Piece
+              </div>
+              <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+                {activeCopy.purposeTitle}
+              </h2>
+              <p className="text-xl text-background/70">{activeCopy.purposeSubtitle}</p>
+            </div>
+
+            <p className="mx-auto mb-12 max-w-3xl text-center text-lg text-background/80">
+              {activeCopy.purposeDescription}
+            </p>
+
+            <div className="grid gap-8 md:grid-cols-3">
+              <PurposeCard
+                icon={<Compass className="h-6 w-6" />}
+                title={activeCopy.purposePoints[0].title}
+                description={activeCopy.purposePoints[0].description}
+              />
+              <PurposeCard
+                icon={<Focus className="h-6 w-6" />}
+                title={activeCopy.purposePoints[1].title}
+                description={activeCopy.purposePoints[1].description}
+              />
+              <PurposeCard
+                icon={<GitBranch className="h-6 w-6" />}
+                title={activeCopy.purposePoints[2].title}
+                description={activeCopy.purposePoints[2].description}
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Features Section */}
-        <section className="border-t bg-muted/30 py-24">
+        <section className="bg-muted/30 py-24">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
               <h2 className="mb-4 text-3xl font-bold tracking-tight">{activeCopy.featureTitle}</h2>
@@ -512,6 +605,30 @@ function TranslationSwitch({
         />
         <span className="sr-only">Translate to English</span>
       </button>
+    </div>
+  )
+}
+
+/**
+ * PurposeCard displays a business purpose point in the dark inverted section.
+ * Why: styled for dark background to create visual contrast and emphasize the key differentiator.
+ */
+function PurposeCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <div className="rounded-lg border border-background/20 bg-background/10 p-6">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-background/20">
+        {icon}
+      </div>
+      <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+      <p className="text-sm text-background/70">{description}</p>
     </div>
   )
 }
